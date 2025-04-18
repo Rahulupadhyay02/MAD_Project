@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <!-- Main Content -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- Top toolbar with orange background -->
+        <LinearLayout
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/orange"
+            android:orientation="horizontal"
+            android:padding="20dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <!-- Menu Button -->
+            <ImageView
+                android:id="@+id/iv_menu"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:contentDescription="@string/menu"
+                android:src="@drawable/ic_menu" />
+
+            <!-- Search Bar -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/search_card"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_weight="1"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="8dp">
+
+                    <EditText
+                        android:id="@+id/et_search"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="@null"
+                        android:hint="@string/search_hint"
+                        android:inputType="text"
+                        android:autofillHints="search"
+                        android:textSize="16sp" />
+
+                    <ImageView
+                        android:id="@+id/iv_search"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:contentDescription="@string/search"
+                        android:src="@drawable/ic_search" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+            
+            <!-- Notification Button -->
+            <ImageView
+                android:id="@+id/iv_notification"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="@string/notification"
+                android:src="@drawable/ic_notification" />
+                
+            <!-- Message Button -->
+            <ImageView
+                android:id="@+id/iv_message"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="@string/message"
+                android:src="@drawable/ic_message" />
+
+            <!-- Profile Button -->
+            <ImageView
+                android:id="@+id/iv_profile"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center_vertical"
+                android:contentDescription="@string/profile"
+                android:src="@drawable/ic_profile" />
+        </LinearLayout>
+
+        <!-- Grid of location types -->
+        <GridLayout
+            android:id="@+id/grid_locations"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="3"
+            android:padding="25dp"
+            android:rowCount="2"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/toolbar">
+
+            <!-- Home -->
+            <TextView
+                android:id="@+id/location_home"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:padding="20dp"
+                android:text="@string/my_home"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:layout_marginTop="8dp"
+                android:drawableTop="@drawable/ic_home"
+                android:drawablePadding="8dp" />
+
+            <!-- Office -->
+            <TextView
+                android:id="@+id/location_office"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:padding="20dp"
+                android:text="@string/office"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:layout_marginTop="8dp"
+                android:drawableTop="@drawable/ic_office"
+                android:drawablePadding="8dp" />
+
+            <!-- Warehouse -->
+            <TextView
+                android:id="@+id/location_warehouse"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:padding="20dp"
+                android:text="@string/warehouse"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:layout_marginTop="8dp"
+                android:drawableTop="@drawable/ic_warehouse"
+                android:drawablePadding="8dp" />
+
+            <!-- Shop -->
+            <TextView
+                android:id="@+id/location_shop"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:padding="20dp"
+                android:text="@string/shop"
+                android:textColor="@color/black"
+                android:textSize="14sp" 
+                android:layout_marginTop="8dp"
+                android:drawableTop="@drawable/ic_shop"
+                android:drawablePadding="8dp" />
+
+            <!-- Car -->
+            <TextView
+                android:id="@+id/location_car"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1" 
+                android:gravity="center"
+                android:padding="20dp"
+                android:text="@string/car"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:layout_marginTop="8dp"
+                android:drawableTop="@drawable/ic_car"
+                android:drawablePadding="8dp" />
+
+            <!-- XYZ -->
+            <TextView
+                android:id="@+id/location_xyz"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_rowWeight="1"
+                android:layout_columnWeight="1"
+                android:gravity="center"
+                android:padding="20dp"
+                android:text="@string/xyz"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:layout_marginTop="8dp"
+                android:drawableTop="@drawable/ic_xyz"
+                android:drawablePadding="8dp" />
+        </GridLayout>
+
+        <!-- Floating Action Button -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_add"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="24dp"
+            android:contentDescription="@string/add_new"
+            android:src="@drawable/ic_add"
+            app:backgroundTint="@color/light_gray"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:tint="@color/gray" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Navigation Menu View - Left drawer -->
+    <include
+        android:id="@+id/nav_menu_view"
+        layout="@layout/nav_menu"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start" />
+
+    <!-- Profile View - Right drawer -->
+    <include
+        android:id="@+id/nav_profile_view"
+        layout="@layout/nav_profile"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:visibility="gone" />
+
+</androidx.drawerlayout.widget.DrawerLayout>
