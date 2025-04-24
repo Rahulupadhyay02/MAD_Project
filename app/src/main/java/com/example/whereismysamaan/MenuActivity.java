@@ -152,8 +152,28 @@ public class MenuActivity extends AppCompatActivity {
             // Language menu item
             menuLanguage.setOnClickListener(v -> {
                 try {
-                    Toast.makeText(MenuActivity.this, "Language settings clicked", Toast.LENGTH_SHORT).show();
-                    // TODO: Implement language selection dialog or activity
+                    // Create a dialog for language selection
+                    final String[] languages = {"English", "Hindi", "Bengali", "Telugu", "Tamil", "Marathi", "Gujarati"};
+                    
+                    androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                    builder.setTitle("Select Language");
+                    
+                    // Get current language preference
+                    SharedPreferences prefs = getSharedPreferences("app_preferences", MODE_PRIVATE);
+                    int selectedLanguage = prefs.getInt("selected_language", 0); // Default to English (index 0)
+                    
+                    builder.setSingleChoiceItems(languages, selectedLanguage, (dialog, which) -> {
+                        // Save language preference
+                        prefs.edit().putInt("selected_language", which).apply();
+                        
+                        Toast.makeText(MenuActivity.this, 
+                                "Language set to " + languages[which] + "\nRestart app to apply changes", 
+                                Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                    });
+                    
+                    builder.setNegativeButton("Cancel", null);
+                    builder.show();
                 } catch (Exception e) {
                     Log.e(TAG, "Error in menuLanguage click: " + e.getMessage(), e);
                 }
@@ -188,10 +208,22 @@ public class MenuActivity extends AppCompatActivity {
             // Rate Us menu item
             menuRateUs.setOnClickListener(v -> {
                 try {
-                    Toast.makeText(MenuActivity.this, "Rate Us clicked", Toast.LENGTH_SHORT).show();
-                    // TODO: Implement app rating functionality using Play Store API
+                    // Open Play Store to rate the app
+                    Uri uri = Uri.parse("market://details?id=" + getPackageName());
+                    Intent rateIntent = new Intent(Intent.ACTION_VIEW, uri);
+                    
+                    // To catch if the Play Store app is not installed
+                    if (rateIntent.resolveActivity(getPackageManager()) != null) {
+                        startActivity(rateIntent);
+                    } else {
+                        // If Play Store not available, open browser
+                        Uri webUri = Uri.parse("https://play.google.com/store/apps/details?id=" + getPackageName());
+                        Intent webIntent = new Intent(Intent.ACTION_VIEW, webUri);
+                        startActivity(webIntent);
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "Error in menuRateUs click: " + e.getMessage(), e);
+                    Toast.makeText(MenuActivity.this, "Could not open app store", Toast.LENGTH_SHORT).show();
                 }
             });
             
@@ -226,8 +258,49 @@ public class MenuActivity extends AppCompatActivity {
             // Terms & Conditions menu item
             menuTerms.setOnClickListener(v -> {
                 try {
-                    Toast.makeText(MenuActivity.this, "Terms & Conditions clicked", Toast.LENGTH_SHORT).show();
-                    // TODO: Implement Terms & Conditions activity
+                    // Create an AlertDialog to show terms and conditions
+                    androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                    builder.setTitle("Terms & Conditions");
+                    
+                    // Create a ScrollView to hold the text
+                    android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+                    TextView textView = new TextView(this);
+                    
+                    // Set padding and text
+                    textView.setPadding(30, 30, 30, 30);
+                    textView.setText(
+                            "Terms and Conditions for WhereIsMySamaan App\n\n" +
+                            "Last Updated: 2023-09-01\n\n" +
+                            "1. ACCEPTANCE OF TERMS\n\n" +
+                            "By downloading, installing, or using WhereIsMySamaan application, you agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use the app.\n\n" +
+                            "2. DESCRIPTION OF SERVICE\n\n" +
+                            "WhereIsMySamaan is a personal inventory management application that allows users to track and organize their belongings.\n\n" +
+                            "3. PRIVACY POLICY\n\n" +
+                            "Your privacy is important to us. Please review our Privacy Policy to understand how we collect, use, and protect your personal information.\n\n" +
+                            "4. USER CONTENT\n\n" +
+                            "You retain ownership of any content you upload to the application. However, you grant us a non-exclusive license to use, modify, and display such content for the purpose of providing our services.\n\n" +
+                            "5. PROHIBITED ACTIVITIES\n\n" +
+                            "When using WhereIsMySamaan, you agree not to:\n" +
+                            "- Violate any applicable laws or regulations\n" +
+                            "- Infringe upon the rights of others\n" +
+                            "- Use the app for illegal activities\n" +
+                            "- Attempt to gain unauthorized access to the app's systems\n\n" +
+                            "6. LIMITATION OF LIABILITY\n\n" +
+                            "To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the app.\n\n" +
+                            "7. CHANGES TO TERMS\n\n" +
+                            "We reserve the right to modify these Terms at any time. Your continued use of the app after such changes constitutes your acceptance of the new Terms.\n\n" +
+                            "8. CONTACT INFORMATION\n\n" +
+                            "If you have any questions about these Terms, please contact us at support@whereismysamaan.com."
+                    );
+                    
+                    scrollView.addView(textView);
+                    builder.setView(scrollView);
+                    
+                    builder.setPositiveButton("I Agree", (dialog, which) -> {
+                        dialog.dismiss();
+                    });
+                    
+                    builder.show();
                 } catch (Exception e) {
                     Log.e(TAG, "Error in menuTerms click: " + e.getMessage(), e);
                 }
@@ -236,8 +309,45 @@ public class MenuActivity extends AppCompatActivity {
             // Help & Support menu item
             menuHelp.setOnClickListener(v -> {
                 try {
-                    Toast.makeText(MenuActivity.this, "Help & Support clicked", Toast.LENGTH_SHORT).show();
-                    // TODO: Implement Help & Support activity
+                    // Create an AlertDialog with help topics
+                    androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                    builder.setTitle("Help & Support");
+                    
+                    final String[] helpTopics = {
+                            "How to add items", 
+                            "Managing locations", 
+                            "Setting reminders", 
+                            "Searching for items",
+                            "Sharing items",
+                            "Contact support"
+                    };
+                    
+                    builder.setItems(helpTopics, (dialog, which) -> {
+                        switch (which) {
+                            case 0: // How to add items
+                            case 1: // Managing locations
+                            case 2: // Setting reminders
+                            case 3: // Searching for items
+                            case 4: // Sharing items
+                                showHelpContent(helpTopics[which]);
+                                break;
+                            case 5: // Contact support
+                                // Open email client to contact support
+                                Intent emailIntent = new Intent(Intent.ACTION_SEND);
+                                emailIntent.setType("message/rfc822");
+                                emailIntent.putExtra(Intent.EXTRA_EMAIL, new String[]{"support@whereismysamaan.com"});
+                                emailIntent.putExtra(Intent.EXTRA_SUBJECT, "Help Request - WhereIsMySamaan App");
+                                try {
+                                    startActivity(Intent.createChooser(emailIntent, "Send Email"));
+                                } catch (android.content.ActivityNotFoundException ex) {
+                                    Toast.makeText(MenuActivity.this, "No email app installed", Toast.LENGTH_SHORT).show();
+                                }
+                                break;
+                        }
+                    });
+                    
+                    builder.setNegativeButton("Close", null);
+                    builder.show();
                 } catch (Exception e) {
                     Log.e(TAG, "Error in menuHelp click: " + e.getMessage(), e);
                 }
@@ -254,5 +364,86 @@ public class MenuActivity extends AppCompatActivity {
     public static boolean isDarkModeEnabled(AppCompatActivity activity) {
         return activity.getSharedPreferences("app_preferences", MODE_PRIVATE)
                 .getBoolean("dark_mode", false);
+    }
+    
+    // Helper method to show help content for different topics
+    private void showHelpContent(String topic) {
+        androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+        builder.setTitle(topic);
+        
+        // Create a ScrollView with content
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+        TextView textView = new TextView(this);
+        textView.setPadding(30, 30, 30, 30);
+        
+        // Set content based on selected topic
+        switch (topic) {
+            case "How to add items":
+                textView.setText(
+                        "How to Add Items\n\n" +
+                        "1. Tap the '+' button at the bottom of the home screen\n" +
+                        "2. Enter the item name and details\n" +
+                        "3. Select a location for the item\n" +
+                        "4. Optionally add a photo of the item\n" +
+                        "5. Tap 'Save' to add the item to your inventory\n\n" +
+                        "You can also add multiple items at once by using the 'Add Multiple' option."
+                );
+                break;
+            case "Managing locations":
+                textView.setText(
+                        "Managing Locations\n\n" +
+                        "1. Tap on any location on the home screen\n" +
+                        "2. View all items in that location\n" +
+                        "3. To add a new location, go to Settings > Manage Locations\n" +
+                        "4. Tap the '+' button to add a new location\n" +
+                        "5. Enter location name and optional details\n" +
+                        "6. Tap 'Save' to add the new location\n\n" +
+                        "You can edit or delete existing locations from the Manage Locations screen."
+                );
+                break;
+            case "Setting reminders":
+                textView.setText(
+                        "Setting Reminders\n\n" +
+                        "1. Open the menu by tapping the menu icon\n" +
+                        "2. Select 'Reminder Settings'\n" +
+                        "3. Toggle 'Periodic Reminders' to enable or disable\n" +
+                        "4. Select reminder frequency (daily, weekly, monthly)\n" +
+                        "5. Set preferred time for reminders\n" +
+                        "6. Tap 'Save' to apply changes\n\n" +
+                        "You can also set individual reminders for specific items from the item details screen."
+                );
+                break;
+            case "Searching for items":
+                textView.setText(
+                        "Searching for Items\n\n" +
+                        "1. Use the search bar at the top of the home screen\n" +
+                        "2. Enter the name or partial name of the item\n" +
+                        "3. Tap the search icon or press Enter\n" +
+                        "4. View search results showing matching items\n" +
+                        "5. Tap on any item to view details\n\n" +
+                        "You can also filter search results by location using the filter option."
+                );
+                break;
+            case "Sharing items":
+                textView.setText(
+                        "Sharing Items\n\n" +
+                        "1. From the home screen, tap on the item you want to share\n" +
+                        "2. In the item details screen, tap the 'Share' icon\n" +
+                        "3. Select sharing method (WhatsApp, Email, etc.)\n" +
+                        "4. Add recipients and optional message\n" +
+                        "5. Tap 'Share' to send the information\n\n" +
+                        "You can also share your entire inventory from Menu > Share Samaan."
+                );
+                break;
+            default:
+                textView.setText("No information available for this topic.");
+                break;
+        }
+        
+        scrollView.addView(textView);
+        builder.setView(scrollView);
+        
+        builder.setPositiveButton("Close", null);
+        builder.show();
     }
 } 
