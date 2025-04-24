@@ -24,6 +24,12 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.activity.OnBackPressedCallback;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import android.app.Dialog;
+import android.view.LayoutInflater;
+import android.widget.Button;
+import android.widget.GridLayout;
+import androidx.appcompat.app.AlertDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -59,6 +65,8 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<Intent> profileActivityLauncher;
     private ActivityResultLauncher<Intent> reminderActivityLauncher;
     private ActivityResultLauncher<Intent> settingsActivityLauncher;
+
+    private GridLayout gridLocations;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -197,6 +205,9 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Log.e(TAG, "navMenuView is null, cannot initialize menu items");
         }
+
+        // Grid layout
+        gridLocations = findViewById(R.id.grid_locations);
     }
 
     private void setupClickListeners() {
@@ -242,27 +253,21 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // Set click listeners for location items
-        locationHome.setOnClickListener(v -> 
-            Toast.makeText(MainActivity.this, "My Home selected", Toast.LENGTH_SHORT).show());
-        
-        locationOffice.setOnClickListener(v -> 
-            Toast.makeText(MainActivity.this, "Office selected", Toast.LENGTH_SHORT).show());
-        
-        locationWarehouse.setOnClickListener(v -> 
-            Toast.makeText(MainActivity.this, "Warehouse selected", Toast.LENGTH_SHORT).show());
-        
-        locationShop.setOnClickListener(v -> 
-            Toast.makeText(MainActivity.this, "Shop selected", Toast.LENGTH_SHORT).show());
-        
-        locationCar.setOnClickListener(v -> 
-            Toast.makeText(MainActivity.this, "Car selected", Toast.LENGTH_SHORT).show());
-        
-        locationXyz.setOnClickListener(v -> 
-            Toast.makeText(MainActivity.this, "XYZ selected", Toast.LENGTH_SHORT).show());
+        locationHome.setOnClickListener(v -> openSubLocationActivity("My Home"));
+        locationOffice.setOnClickListener(v -> openSubLocationActivity("Office"));
+        locationWarehouse.setOnClickListener(v -> openSubLocationActivity("Warehouse"));
+        locationShop.setOnClickListener(v -> openSubLocationActivity("Shop"));
+        locationCar.setOnClickListener(v -> openSubLocationActivity("Car"));
+        locationXyz.setOnClickListener(v -> openSubLocationActivity("XYZ"));
 
         // Floating action button click
-        fabAdd.setOnClickListener(v -> 
-            Toast.makeText(MainActivity.this, "Add new location", Toast.LENGTH_SHORT).show());
+        fabAdd.setOnClickListener(v -> showAddLocationDialog());
+    }
+    
+    private void openSubLocationActivity(String locationName) {
+        Intent intent = new Intent(this, SubLocationActivity.class);
+        intent.putExtra(SubLocationActivity.EXTRA_LOCATION_NAME, locationName);
+        startActivity(intent);
     }
     
     private void setupMenuClickListeners() {
@@ -325,5 +330,82 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Log.e(TAG, "switchDarkMode is null, cannot set listener");
         }
+    }
+
+    private void showAddLocationDialog() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_location, null);
+        EditText etLocationName = dialogView.findViewById(R.id.et_location_name);
+        
+        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+            .setView(dialogView)
+            .create();
+        
+        Button btnCancel = dialogView.findViewById(R.id.btn_cancel);
+        Button btnAdd = dialogView.findViewById(R.id.btn_add);
+        
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        
+        btnAdd.setOnClickListener(v -> {
+            String locationName = etLocationName.getText().toString().trim();
+            if (!locationName.isEmpty()) {
+                addNewLocationToGrid(locationName);
+                dialog.dismiss();
+            } else {
+                Toast.makeText(MainActivity.this, "Please enter a location name", Toast.LENGTH_SHORT).show();
+            }
+        });
+        
+        dialog.show();
+    }
+    
+    private void addNewLocationToGrid(String locationName) {
+        // Create a new TextView
+        TextView newLocation = new TextView(this);
+        
+        // Get the GridLayout's row and column counts
+        int columns = gridLocations.getColumnCount();
+        int rows = gridLocations.getRowCount();
+        
+        // Calculate row and column for the new location
+        int childCount = gridLocations.getChildCount();
+        
+        // Check if we need to add a new row
+        if (childCount / columns >= rows) {
+            // We need to increase the row count before adding the view
+            gridLocations.setRowCount(rows + 1);
+            rows = gridLocations.getRowCount();
+        }
+        
+        int row = childCount / columns;
+        int column = childCount % columns;
+        
+        // Set layout params with specific row and column
+        GridLayout.LayoutParams params = new GridLayout.LayoutParams(
+                GridLayout.spec(row, 1f),
+                GridLayout.spec(column, 1f)
+        );
+        params.width = 0;
+        params.height = GridLayout.LayoutParams.WRAP_CONTENT;
+        params.topMargin = (int) getResources().getDimension(R.dimen.location_item_margin_top);
+        newLocation.setLayoutParams(params);
+        
+        // Set layout properties similar to existing location items
+        newLocation.setGravity(android.view.Gravity.CENTER);
+        newLocation.setPadding(20, 20, 20, 20);
+        newLocation.setText(locationName);
+        newLocation.setTextColor(getResources().getColor(R.color.black, getTheme()));
+        newLocation.setTextSize(14);
+        
+        // Set default icon
+        newLocation.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_xyz, 0, 0);
+        newLocation.setCompoundDrawablePadding(8);
+        
+        // Add click listener
+        newLocation.setOnClickListener(v -> openSubLocationActivity(locationName));
+        
+        // Add to grid
+        gridLocations.addView(newLocation);
+        
+        Toast.makeText(this, "Added new location: " + locationName, Toast.LENGTH_SHORT).show();
     }
 }

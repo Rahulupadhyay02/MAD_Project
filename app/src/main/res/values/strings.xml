@@ -123,4 +123,23 @@
     <string name="menu_suggest_feature">Suggest Feature</string>
     <string name="menu_terms">Terms &amp; Conditions</string>
     <string name="menu_help">Help &amp; Support</string>
+    
+    <!-- New dialog strings -->
+    <string name="add_new_location">Add New Location</string>
+    <string name="enter_location_name">Enter location name</string>
+    <string name="add">Add</string>
+    <string name="cancel">Cancel</string>
+    
+    <!-- Sublocation strings -->
+    <string name="add_new_sublocation">Add New Sublocation</string>
+    <string name="enter_sublocation_name">Enter sublocation name</string>
+    <string name="sublocations">Sublocations</string>
+    
+    <!-- Saaman strings -->
+    <string name="add_new_saaman">Add New Saaman</string>
+    <string name="enter_saaman_name">Enter saaman name</string>
+    <string name="enter_saaman_description">Enter description (optional)</string>
+    <string name="no_items">No items found</string>
+    <string name="add_items_hint">Click the + button below to add items</string>
+    <string name="saaman_type">Saaman Type</string>
 </resources>

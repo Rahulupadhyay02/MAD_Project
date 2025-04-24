@@ -33,6 +33,12 @@
         <activity
             android:name=".PeriodicReminderActivity"
             android:exported="false" />
+        <activity
+            android:name=".SubLocationActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SaamanListActivity"
+            android:exported="false" />
             
         <!-- BroadcastReceiver for reminders -->
         <receiver 
