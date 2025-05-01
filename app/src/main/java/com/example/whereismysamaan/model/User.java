@@ -18,6 +18,8 @@ public class User {
         this.email = email;
         this.name = extractNameFromEmail(email);
         this.username = extractUsernameFromEmail(email);
+        this.phone = "";
+        this.about = "";
     }
     
     private String extractNameFromEmail(String email) {

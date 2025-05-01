@@ -14,7 +14,8 @@ public class Location {
     
     public Location(String name) {
         this.id = UUID.randomUUID().toString();
-        this.name = name;
+        // Prevent null name by using empty string if name is null
+        this.name = (name != null) ? name : "";
     }
     
     // Getters and setters
@@ -31,7 +32,7 @@ public class Location {
     }
     
     public void setName(String name) {
-        this.name = name;
+        this.name = (name != null) ? name : "";
     }
     
     public int getIconResId() {

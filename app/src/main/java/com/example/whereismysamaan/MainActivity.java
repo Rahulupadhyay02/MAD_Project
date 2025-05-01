@@ -501,6 +501,12 @@ public class MainActivity extends AppCompatActivity {
             public void onLocationsLoaded(List<Location> locations) {
                 // Add each location to the grid
                 for (Location location : locations) {
+                    // Skip null locations or locations with null names
+                    if (location == null || location.getName() == null) {
+                        Log.w(TAG, "Skipping null location or location with null name");
+                        continue;
+                    }
+                    
                     // Skip locations that match default names to avoid duplicates
                     if (!isDefaultLocationName(location.getName())) {
                         addLocationToGrid(location);
@@ -606,6 +612,13 @@ public class MainActivity extends AppCompatActivity {
                         etProfileAbout.setText(user.getAbout());
                     }
                     
+                    // Set a focus change listener to save phone when user finishes editing
+                    etProfilePhone.setOnFocusChangeListener((v, hasFocus) -> {
+                        if (!hasFocus) {
+                            savePhoneNumber();
+                        }
+                    });
+                    
                     // Set up edit buttons
                     Button btnEditProfile = navProfileView.findViewById(R.id.btn_edit_profile);
                     if (btnEditProfile != null) {
@@ -659,7 +672,8 @@ public class MainActivity extends AppCompatActivity {
         EditText etProfileAbout = navProfileView.findViewById(R.id.et_profile_about);
         
         etProfileName.setEnabled(enabled);
-        etProfilePhone.setEnabled(enabled);
+        // Phone is always editable
+        etProfilePhone.setEnabled(true);
         etProfileAbout.setEnabled(enabled);
         
         Button btnEditProfile = navProfileView.findViewById(R.id.btn_edit_profile);
@@ -784,6 +798,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isDefaultLocationName(String name) {
+        if (name == null) {
+            return false; // Return false for null names
+        }
         return name.equals("My Home") || 
                name.equals("Office") || 
                name.equals("Warehouse") || 
@@ -834,6 +851,46 @@ public class MainActivity extends AppCompatActivity {
                     task.getException().getMessage() : "Unknown error";
                 Toast.makeText(MainActivity.this, "Failed to update profile photo: " + errorMsg, Toast.LENGTH_SHORT).show();
                 Log.e("MainActivity", "Failed to update profile photo: " + errorMsg);
+            }
+        });
+    }
+
+    // Method to save just the phone number
+    private void savePhoneNumber() {
+        if (navProfileView == null) {
+            Log.e(TAG, "navProfileView is null, cannot save phone number");
+            return;
+        }
+        
+        EditText etProfilePhone = navProfileView.findViewById(R.id.et_profile_phone);
+        if (etProfilePhone == null) {
+            return;
+        }
+        
+        String phoneNumber = etProfilePhone.getText().toString().trim();
+        
+        // Get current user profile and update phone number
+        firebaseHelper.getUserProfile(new FirebaseHelper.OnUserProfileLoadedListener() {
+            @Override
+            public void onUserProfileLoaded(User user) {
+                if (user != null) {
+                    // Only update if the phone number has changed
+                    if (!phoneNumber.equals(user.getPhone())) {
+                        user.setPhone(phoneNumber);
+                        firebaseHelper.updateUserProfile(user, task -> {
+                            if (task != null && task.isSuccessful()) {
+                                Log.d(TAG, "Phone number updated: " + phoneNumber);
+                            } else {
+                                Log.e(TAG, "Failed to update phone number");
+                            }
+                        });
+                    }
+                }
+            }
+            
+            @Override
+            public void onError(String error) {
+                Log.e(TAG, "Error getting user profile to update phone: " + error);
             }
         });
     }
