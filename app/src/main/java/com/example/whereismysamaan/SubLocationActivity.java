@@ -17,14 +17,19 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.whereismysamaan.firebase.FirebaseHelper;
+import com.example.whereismysamaan.model.Sublocation;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import java.util.List;
 
 public class SubLocationActivity extends AppCompatActivity {
     private static final String TAG = "SubLocationActivity";
     
     // Intent extras
     public static final String EXTRA_LOCATION_NAME = "location_name";
+    public static final String EXTRA_LOCATION_ID = "location_id";
     
     // UI components
     private TextView tvLocationTitle;
@@ -32,8 +37,12 @@ public class SubLocationActivity extends AppCompatActivity {
     private GridLayout gridSublocations;
     private FloatingActionButton fabAddSublocation;
     
+    // Firebase helper
+    private FirebaseHelper firebaseHelper;
+    
     // Location info
     private String locationName;
+    private String locationId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,17 +56,24 @@ public class SubLocationActivity extends AppCompatActivity {
             return insets;
         });
         
-        // Get location name from intent
+        // Get location info from intent
         locationName = getIntent().getStringExtra(EXTRA_LOCATION_NAME);
+        locationId = getIntent().getStringExtra(EXTRA_LOCATION_ID);
         if (locationName == null) {
             locationName = "Location";
         }
+        
+        // Initialize Firebase helper
+        firebaseHelper = FirebaseHelper.getInstance();
         
         // Initialize views
         initViews();
         
         // Set click listeners
         setupClickListeners();
+        
+        // Load sublocations
+        loadSublocations();
     }
     
     private void initViews() {
@@ -78,6 +94,56 @@ public class SubLocationActivity extends AppCompatActivity {
         fabAddSublocation.setOnClickListener(v -> showAddSublocationDialog());
     }
     
+    private void loadSublocations() {
+        // Check if locationId is valid before trying to load
+        if (locationId == null || locationId.isEmpty()) {
+            Toast.makeText(this, "Error: Invalid location ID", Toast.LENGTH_SHORT).show();
+            gridSublocations.removeAllViews();
+            // Show an empty state or message
+            TextView emptyText = new TextView(this);
+            emptyText.setText("No sublocations available");
+            emptyText.setGravity(android.view.Gravity.CENTER);
+            emptyText.setTextSize(16);
+            gridSublocations.addView(emptyText);
+            return;
+        }
+
+        // Now proceed with loading using the valid locationId
+        firebaseHelper.getSublocations(locationId, new FirebaseHelper.OnSublocationsLoadedListener() {
+            @Override
+            public void onSublocationsLoaded(List<Sublocation> sublocations) {
+                // Clear existing views
+                gridSublocations.removeAllViews();
+                
+                // Add each sublocation to the grid
+                for (Sublocation sublocation : sublocations) {
+                    addSublocationToGrid(sublocation);
+                }
+                
+                // Show empty message if no sublocations
+                if (sublocations.isEmpty()) {
+                    TextView emptyText = new TextView(SubLocationActivity.this);
+                    emptyText.setText("No sublocations yet. Add one using the + button.");
+                    emptyText.setGravity(android.view.Gravity.CENTER);
+                    emptyText.setTextSize(16);
+                    gridSublocations.addView(emptyText);
+                }
+            }
+
+            @Override
+            public void onError(String error) {
+                Toast.makeText(SubLocationActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
+                // Show empty state
+                gridSublocations.removeAllViews();
+                TextView errorText = new TextView(SubLocationActivity.this);
+                errorText.setText("Error loading sublocations");
+                errorText.setGravity(android.view.Gravity.CENTER);
+                errorText.setTextSize(16);
+                gridSublocations.addView(errorText);
+            }
+        });
+    }
+    
     private void showAddSublocationDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_sublocation, null);
         EditText etSublocationName = dialogView.findViewById(R.id.et_sublocation_name);
@@ -94,7 +160,7 @@ public class SubLocationActivity extends AppCompatActivity {
         btnAdd.setOnClickListener(v -> {
             String sublocationName = etSublocationName.getText().toString().trim();
             if (!sublocationName.isEmpty()) {
-                addNewSublocationToGrid(sublocationName);
+                addNewSublocation(sublocationName);
                 dialog.dismiss();
             } else {
                 Toast.makeText(SubLocationActivity.this, "Please enter a sublocation name", Toast.LENGTH_SHORT).show();
@@ -104,7 +170,31 @@ public class SubLocationActivity extends AppCompatActivity {
         dialog.show();
     }
     
-    private void addNewSublocationToGrid(String sublocationName) {
+    private void addNewSublocation(String sublocationName) {
+        // Check if locationId is valid before adding a sublocation
+        if (locationId == null || locationId.isEmpty()) {
+            Toast.makeText(this, "Error: Cannot add sublocation - Invalid location ID", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Create a new Sublocation object
+        Sublocation sublocation = new Sublocation(sublocationName, locationId);
+        
+        // Add to Firebase
+        firebaseHelper.addSublocation(sublocation, task -> {
+            if (task.isSuccessful()) {
+                Toast.makeText(SubLocationActivity.this, "Added new sublocation: " + sublocationName, Toast.LENGTH_SHORT).show();
+                // Add to the UI
+                addSublocationToGrid(sublocation);
+            } else {
+                String errorMessage = task.getException() != null ? 
+                    task.getException().getMessage() : "Failed to add sublocation";
+                Toast.makeText(SubLocationActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    
+    private void addSublocationToGrid(Sublocation sublocation) {
         // Create a new TextView
         TextView newSublocation = new TextView(this);
         
@@ -117,7 +207,6 @@ public class SubLocationActivity extends AppCompatActivity {
         
         // Check if we need to add a new row
         if (childCount / columns >= rows) {
-            // We need to increase the row count before adding the view
             gridSublocations.setRowCount(rows + 1);
             rows = gridSublocations.getRowCount();
         }
@@ -125,7 +214,7 @@ public class SubLocationActivity extends AppCompatActivity {
         int row = childCount / columns;
         int column = childCount % columns;
         
-        // Set layout params with specific row and column
+        // Set layout params
         GridLayout.LayoutParams params = new GridLayout.LayoutParams(
                 GridLayout.spec(row, 1f),
                 GridLayout.spec(column, 1f)
@@ -135,10 +224,10 @@ public class SubLocationActivity extends AppCompatActivity {
         params.topMargin = (int) getResources().getDimension(R.dimen.location_item_margin_top);
         newSublocation.setLayoutParams(params);
         
-        // Set layout properties similar to existing location items
+        // Set layout properties
         newSublocation.setGravity(android.view.Gravity.CENTER);
         newSublocation.setPadding(20, 20, 20, 20);
-        newSublocation.setText(sublocationName);
+        newSublocation.setText(sublocation.getName());
         newSublocation.setTextColor(getResources().getColor(R.color.black, getTheme()));
         newSublocation.setTextSize(14);
         
@@ -146,23 +235,18 @@ public class SubLocationActivity extends AppCompatActivity {
         newSublocation.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.ic_xyz, 0, 0);
         newSublocation.setCompoundDrawablePadding(8);
         
-        // Generate a unique ID for this sublocation
-        final String sublocationId = "sublocation_" + System.currentTimeMillis();
-        
         // Add click listener
-        newSublocation.setOnClickListener(v -> openSaamanListActivity(sublocationId, sublocationName));
+        newSublocation.setOnClickListener(v -> openSaamanListActivity(sublocation));
         
         // Add to grid
         gridSublocations.addView(newSublocation);
-        
-        Toast.makeText(this, "Added new sublocation: " + sublocationName, Toast.LENGTH_SHORT).show();
     }
     
-    private void openSaamanListActivity(String sublocationId, String sublocationName) {
+    private void openSaamanListActivity(Sublocation sublocation) {
         Intent intent = new Intent(this, SaamanListActivity.class);
-        intent.putExtra(SaamanListActivity.EXTRA_SUBLOCATION_ID, sublocationId);
-        intent.putExtra(SaamanListActivity.EXTRA_SUBLOCATION_NAME, sublocationName);
-        intent.putExtra(SaamanListActivity.EXTRA_LOCATION_ID, locationName);
+        intent.putExtra(SaamanListActivity.EXTRA_SUBLOCATION_ID, sublocation.getId());
+        intent.putExtra(SaamanListActivity.EXTRA_SUBLOCATION_NAME, sublocation.getName());
+        intent.putExtra(SaamanListActivity.EXTRA_LOCATION_ID, locationId);
         startActivity(intent);
     }
 } 

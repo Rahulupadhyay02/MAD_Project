@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Whereismysamaan</string>
+    <string name="app_name">Where Is My Saaman</string>
     <string name="welcome_back">Welcome Back!</string>
     <string name="login_to_continue">Login to continue</string>
     <string name="email">Email</string>
@@ -8,6 +8,7 @@
     <string name="login">Login</string>
     <string name="dont_have_account">Don\'t have an account?</string>
     <string name="register">Register</string>
+    <string name="signup">Sign Up</string>
     <string name="app_logo">App Logo</string>
     <string name="create_account">Create Account</string>
     <string name="full_name">Full Name</string>
@@ -140,6 +141,8 @@
     <string name="enter_saaman_name">Enter saaman name</string>
     <string name="enter_saaman_description">Enter description (optional)</string>
     <string name="no_items">No items found</string>
-    <string name="add_items_hint">Click the + button below to add items</string>
+    <string name="add_items_hint">Add items using the + button</string>
     <string name="saaman_type">Saaman Type</string>
+    <string name="edit">Edit</string>
+    <string name="save">Save</string>
 </resources>

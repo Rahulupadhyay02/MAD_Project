@@ -3,30 +3,58 @@ package com.example.whereismysamaan;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
-import com.google.android.material.button.MaterialButton;
-import com.google.android.material.textfield.TextInputEditText;
+import com.example.whereismysamaan.firebase.FirebaseHelper;
 import com.google.android.material.textfield.TextInputLayout;
 
 public class LoginActivity extends AppCompatActivity {
+    private static final String TAG = "LoginActivity";
 
-    private TextInputLayout tilEmail, tilPassword;
-    private TextInputEditText etEmail, etPassword;
-    private MaterialButton btnLogin;
-    private TextView tvForgotPassword, tvRegister;
+    // UI Components
+    private TextInputLayout tilEmail;
+    private TextInputLayout tilPassword;
+    private Button btnLogin;
+    private Button btnSignUp;
+    private TextView tvToggleAuth;
+    
+    // Firebase helper
+    private FirebaseHelper firebaseHelper;
+    
+    // Auth mode
+    private boolean isLoginMode = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+        
+        // Set system UI behavior
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.login_container), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+
+        // Initialize Firebase helper
+        firebaseHelper = FirebaseHelper.getInstance();
+        
+        // Check if user is already logged in
+        if (firebaseHelper.isUserLoggedIn()) {
+            startMainActivity();
+            return;
+        }
 
         // Initialize views
         initViews();
-
+        
         // Set click listeners
         setupClickListeners();
     }
@@ -34,77 +62,75 @@ public class LoginActivity extends AppCompatActivity {
     private void initViews() {
         tilEmail = findViewById(R.id.til_email);
         tilPassword = findViewById(R.id.til_password);
-        etEmail = findViewById(R.id.et_email);
-        etPassword = findViewById(R.id.et_password);
         btnLogin = findViewById(R.id.btn_login);
-        tvForgotPassword = findViewById(R.id.tv_forgot_password);
-        tvRegister = findViewById(R.id.tv_register);
+        btnSignUp = findViewById(R.id.btn_signup);
+        tvToggleAuth = findViewById(R.id.tv_toggle_auth);
+        
+        updateAuthMode();
     }
 
     private void setupClickListeners() {
         // Login button click
-        btnLogin.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Get email and password
-                String email = etEmail.getText().toString().trim();
-                String password = etPassword.getText().toString().trim();
+        btnLogin.setOnClickListener(v -> handleAuth());
+        
+        // Sign up button click
+        btnSignUp.setOnClickListener(v -> handleAuth());
+        
+        // Toggle auth mode text click
+        tvToggleAuth.setOnClickListener(v -> toggleAuthMode());
+    }
 
-                // Validate inputs
-                if (validateInputs(email, password)) {
-                    // For now, just accept any email/password as correct
-                    // Navigate to home screen
-                    navigateToHome();
+    private void toggleAuthMode() {
+        isLoginMode = !isLoginMode;
+        updateAuthMode();
+    }
+
+    private void updateAuthMode() {
+        if (isLoginMode) {
+            btnLogin.setVisibility(View.VISIBLE);
+            btnSignUp.setVisibility(View.GONE);
+            tvToggleAuth.setText(R.string.create_account);
+        } else {
+            btnLogin.setVisibility(View.GONE);
+            btnSignUp.setVisibility(View.VISIBLE);
+            tvToggleAuth.setText(R.string.already_have_account);
+        }
+    }
+
+    private void handleAuth() {
+        String email = tilEmail.getEditText().getText().toString().trim();
+        String password = tilPassword.getEditText().getText().toString().trim();
+
+        if (email.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (isLoginMode) {
+            firebaseHelper.signIn(email, password, task -> {
+                if (task.isSuccessful()) {
+                    startMainActivity();
+                } else {
+                    String errorMessage = task.getException() != null ? 
+                        task.getException().getMessage() : "Login failed";
+                    Toast.makeText(LoginActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
                 }
-            }
-        });
-
-        // Forgot password click
-        tvForgotPassword.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Just show a toast for now
-                Toast.makeText(LoginActivity.this, "Forgot password clicked", Toast.LENGTH_SHORT).show();
-                // TODO: Implement forgot password functionality
-            }
-        });
-
-        // Register click
-        tvRegister.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Navigate to register screen
-                Intent intent = new Intent(LoginActivity.this, RegisterActivity.class);
-                startActivity(intent);
-            }
-        });
+            });
+        } else {
+            firebaseHelper.signUp(email, password, task -> {
+                if (task.isSuccessful()) {
+                    startMainActivity();
+                } else {
+                    String errorMessage = task.getException() != null ? 
+                        task.getException().getMessage() : "Sign up failed";
+                    Toast.makeText(LoginActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
 
-    private boolean validateInputs(String email, String password) {
-        boolean isValid = true;
-
-        // Validate email
-        if (email.isEmpty()) {
-            tilEmail.setError("Email cannot be empty");
-            isValid = false;
-        } else {
-            tilEmail.setError(null);
-        }
-
-        // Validate password
-        if (password.isEmpty()) {
-            tilPassword.setError("Password cannot be empty");
-            isValid = false;
-        } else {
-            tilPassword.setError(null);
-        }
-
-        return isValid;
-    }
-
-    private void navigateToHome() {
-        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+    private void startMainActivity() {
+        Intent intent = new Intent(this, MainActivity.class);
         startActivity(intent);
         finish();
     }

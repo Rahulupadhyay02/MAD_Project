@@ -18,11 +18,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.whereismysamaan.adapter.SaamanAdapter;
+import com.example.whereismysamaan.firebase.FirebaseHelper;
 import com.example.whereismysamaan.model.Saaman;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class SaamanListActivity extends AppCompatActivity implements SaamanAdapter.OnSaamanClickListener {
@@ -43,11 +43,13 @@ public class SaamanListActivity extends AppCompatActivity implements SaamanAdapt
     // Adapter
     private SaamanAdapter adapter;
 
+    // Firebase helper
+    private FirebaseHelper firebaseHelper;
+
     // Data
     private String sublocationId;
     private String sublocationName;
     private String locationId;
-    private List<Saaman> saamanList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +71,9 @@ public class SaamanListActivity extends AppCompatActivity implements SaamanAdapt
         if (sublocationName == null) {
             sublocationName = "Sublocation";
         }
+
+        // Initialize Firebase helper
+        firebaseHelper = FirebaseHelper.getInstance();
 
         // Initialize views
         initViews();
@@ -111,9 +116,18 @@ public class SaamanListActivity extends AppCompatActivity implements SaamanAdapt
     }
 
     private void loadSaamanItems() {
-        // For now, we'll use an in-memory list
-        // In a real app, this would load from a database or API
-        updateEmptyViewVisibility();
+        firebaseHelper.getSaamanItems(locationId, sublocationId, new FirebaseHelper.OnSaamanLoadedListener() {
+            @Override
+            public void onSaamanLoaded(List<Saaman> saamanList) {
+                adapter.setSaamanList(saamanList);
+                updateEmptyViewVisibility();
+            }
+
+            @Override
+            public void onError(String error) {
+                Toast.makeText(SaamanListActivity.this, "Error loading items: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void updateEmptyViewVisibility() {
@@ -158,15 +172,16 @@ public class SaamanListActivity extends AppCompatActivity implements SaamanAdapt
     private void addNewSaaman(String name, String description) {
         // Create a new Saaman object
         Saaman saaman = new Saaman(name, description, sublocationId);
+        saaman.setLocationId(locationId);
         
-        // In a real app, you would save this to a database
-        // For now, we just add it to our adapter
-        adapter.addSaaman(saaman);
-        
-        // Update UI
-        updateEmptyViewVisibility();
-        
-        Toast.makeText(this, "Added new saaman: " + name, Toast.LENGTH_SHORT).show();
+        // Add to Firebase
+        firebaseHelper.addSaaman(saaman, task -> {
+            if (task.isSuccessful()) {
+                Toast.makeText(SaamanListActivity.this, "Added new saaman: " + name, Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(SaamanListActivity.this, "Failed to add saaman: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
