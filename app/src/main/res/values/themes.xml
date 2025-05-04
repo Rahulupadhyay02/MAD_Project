@@ -1,9 +1,68 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.WhereIsMySaaman" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    <style name="Base.Theme.Whereismysamaan" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Default colors -->
+        <item name="colorPrimary">@color/orange</item>
+        <item name="colorPrimaryDark">@color/dark_orange</item>
+        <item name="colorAccent">@color/light_orange</item>
+        <item name="android:windowBackground">@color/white</item>
+        <item name="android:textColor">@color/black</item>
     </style>
 
-    <style name="Theme.WhereIsMySaaman" parent="Base.Theme.WhereIsMySaaman" />
+    <style name="Theme.Whereismysamaan" parent="Base.Theme.Whereismysamaan" />
+    
+    <!-- Light Mode Theme -->
+    <style name="Theme.Whereismysamaan.Light" parent="Base.Theme.Whereismysamaan">
+        <item name="colorPrimary">@color/orange</item>
+        <item name="colorPrimaryDark">@color/dark_orange</item>
+        <item name="colorAccent">@color/light_orange</item>
+        <item name="android:windowBackground">@color/white</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+    
+    <!-- Dark Mode Theme -->
+    <style name="Theme.Whereismysamaan.Dark" parent="Base.Theme.Whereismysamaan">
+        <item name="colorPrimary">@color/dark_orange</item>
+        <item name="colorPrimaryDark">@color/black</item>
+        <item name="colorAccent">@color/orange</item>
+        <item name="android:windowBackground">@color/dark_gray</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+    
+    <!-- High Contrast Theme -->
+    <style name="Theme.Whereismysamaan.HighContrast" parent="Base.Theme.Whereismysamaan">
+        <item name="colorPrimary">@color/black</item>
+        <item name="colorPrimaryDark">@color/black</item>
+        <item name="colorAccent">@color/white</item>
+        <item name="android:windowBackground">@color/black</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+    
+    <!-- Orange Theme -->
+    <style name="Theme.Whereismysamaan.Orange" parent="Base.Theme.Whereismysamaan">
+        <item name="colorPrimary">@color/dark_orange</item>
+        <item name="colorPrimaryDark">@color/very_dark_orange</item>
+        <item name="colorAccent">@color/light_orange</item>
+        <item name="android:windowBackground">@color/very_light_orange</item>
+        <item name="android:textColor">@color/dark_gray</item>
+    </style>
+    
+    <!-- Blue Theme -->
+    <style name="Theme.Whereismysamaan.Blue" parent="Base.Theme.Whereismysamaan">
+        <item name="colorPrimary">@color/blue</item>
+        <item name="colorPrimaryDark">@color/dark_blue</item>
+        <item name="colorAccent">@color/light_blue</item>
+        <item name="android:windowBackground">@color/very_light_blue</item>
+        <item name="android:textColor">@color/dark_gray</item>
+    </style>
+    
+    <!-- Green Theme -->
+    <style name="Theme.Whereismysamaan.Green" parent="Base.Theme.Whereismysamaan">
+        <item name="colorPrimary">@color/green</item>
+        <item name="colorPrimaryDark">@color/dark_green</item>
+        <item name="colorAccent">@color/light_green</item>
+        <item name="android:windowBackground">@color/very_light_green</item>
+        <item name="android:textColor">@color/dark_gray</item>
+    </style>
 </resources>

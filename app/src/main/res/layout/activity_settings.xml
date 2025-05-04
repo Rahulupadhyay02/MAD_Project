@@ -47,9 +47,18 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/personal"
+                android:textStyle="bold"
                 android:textSize="18sp"
                 android:textColor="@color/black"
-                android:layout_marginBottom="16dp"/>
+                android:layout_marginBottom="10dp"/>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/light_gray"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="8dp"/>
 
             <!-- Language -->
             <LinearLayout
@@ -105,13 +114,23 @@
                 android:layout_marginBottom="24dp"/>
 
             <!-- Notifications Section -->
+            <!-- Divider -->
+
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
                 android:text="@string/manage_notifications"
-                android:textSize="18sp"
                 android:textColor="@color/black"
-                android:layout_marginBottom="16dp"/>
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/light_gray"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="8dp"/>
 
             <!-- Show all notifications -->
             <LinearLayout
@@ -187,8 +206,17 @@
                 android:layout_height="wrap_content"
                 android:text="@string/sharing"
                 android:textSize="18sp"
+                android:textStyle="bold"
                 android:textColor="@color/black"
-                android:layout_marginBottom="16dp"/>
+                android:layout_marginBottom="10dp"/>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/light_gray"
+                android:layout_marginTop="1dp"
+                android:layout_marginBottom="8dp"/>
 
             <!-- Shared History Details -->
             <LinearLayout
@@ -229,8 +257,17 @@
                 android:layout_height="wrap_content"
                 android:text="@string/about"
                 android:textSize="18sp"
+                android:textStyle="bold"
                 android:textColor="@color/black"
-                android:layout_marginBottom="16dp"/>
+                android:layout_marginBottom="10dp"/>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/light_gray"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="8dp"/>
 
             <!-- Terms & Conditions -->
             <TextView

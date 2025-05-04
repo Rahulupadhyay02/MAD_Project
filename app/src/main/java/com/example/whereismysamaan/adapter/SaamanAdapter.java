@@ -9,6 +9,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.example.whereismysamaan.R;
 import com.example.whereismysamaan.model.Saaman;
 
@@ -50,6 +51,13 @@ public class SaamanAdapter extends RecyclerView.Adapter<SaamanAdapter.SaamanView
     public void setSaamanList(List<Saaman> saamanList) {
         this.saamanList = saamanList != null ? saamanList : new ArrayList<>();
         notifyDataSetChanged();
+    }
+
+    public void clearItems() {
+        if (this.saamanList != null) {
+            this.saamanList.clear();
+            notifyDataSetChanged();
+        }
     }
 
     public void addSaaman(Saaman saaman) {
@@ -97,8 +105,19 @@ public class SaamanAdapter extends RecyclerView.Adapter<SaamanAdapter.SaamanView
                 tvSaamanDescription.setVisibility(View.GONE);
             }
             
-            // Set the icon (using a default one for now)
-            ivSaamanType.setImageResource(R.drawable.ic_xyz);
+            // Set the image or icon
+            if (saaman.getImageUrl() != null && !saaman.getImageUrl().isEmpty()) {
+                // Load image with Glide
+                Glide.with(ivSaamanType.getContext())
+                    .load(saaman.getImageUrl())
+                    .placeholder(R.drawable.ic_xyz)
+                    .error(R.drawable.ic_xyz)
+                    .centerCrop()
+                    .into(ivSaamanType);
+            } else {
+                // Use default icon
+                ivSaamanType.setImageResource(R.drawable.ic_xyz);
+            }
         }
     }
 } 

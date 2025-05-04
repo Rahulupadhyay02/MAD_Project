@@ -33,6 +33,49 @@
         android:minLines="2"
         android:maxLines="5"
         android:layout_marginBottom="16dp"/>
+        
+    <!-- Image capture and preview section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+        
+        <Button
+            android:id="@+id/btn_take_photo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Take Photo"
+            android:drawableStart="@drawable/ic_camera"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:layout_marginEnd="8dp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+            
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="100dp"
+            android:layout_weight="1"
+            android:background="@drawable/edit_text_background">
+            
+            <ImageView
+                android:id="@+id/iv_saaman_preview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="Saaman Image Preview"
+                android:visibility="gone"/>
+                
+            <TextView
+                android:id="@+id/tv_no_image"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No image"
+                android:layout_gravity="center"
+                android:textColor="@color/gray"/>
+        </FrameLayout>
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"

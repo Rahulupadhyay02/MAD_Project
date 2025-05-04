@@ -44,6 +44,7 @@ public class SettingsActivity extends AppCompatActivity {
     
     // Activity Result Launchers
     private ActivityResultLauncher<Intent> ringtonePickerLauncher;
+    private ActivityResultLauncher<Intent> wallpaperPickerLauncher;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +65,9 @@ public class SettingsActivity extends AppCompatActivity {
             
             // Register for ringtone picker result
             registerRingtonePicker();
+            
+            // Register for wallpaper picker result
+            registerWallpaperPicker();
             
             // Set version info
             String versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
@@ -193,6 +197,22 @@ public class SettingsActivity extends AppCompatActivity {
         );
     }
     
+    private void registerWallpaperPicker() {
+        wallpaperPickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri selectedImageUri = result.getData().getData();
+                    if (selectedImageUri != null) {
+                        saveWallpaperImage(selectedImageUri.toString());
+                        applyWallpaper(selectedImageUri);
+                        Toast.makeText(this, "Custom wallpaper applied", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        );
+    }
+    
     private void showLanguageSelection() {
         final String[] languages = {"English", "Hindi", "Bengali", "Telugu", "Tamil", "Marathi", "Gujarati"};
         
@@ -218,7 +238,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
     
     private void showWallpaperOptions() {
-        final String[] options = {"Choose from Gallery", "Default Wallpapers", "Solid Colors"};
+        final String[] options = {"Choose from Gallery", "Default Wallpapers", "Solid Colors", "Custom Wallpaper"};
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Select Wallpaper");
@@ -226,13 +246,16 @@ public class SettingsActivity extends AppCompatActivity {
         builder.setItems(options, (dialog, which) -> {
             switch (which) {
                 case 0: // Choose from Gallery
-                    Toast.makeText(SettingsActivity.this, "Gallery selection coming soon", Toast.LENGTH_SHORT).show();
+                    openGalleryForWallpaper();
                     break;
                 case 1: // Default Wallpapers
-                    Toast.makeText(SettingsActivity.this, "Default wallpapers coming soon", Toast.LENGTH_SHORT).show();
+                    showDefaultWallpapers();
                     break;
                 case 2: // Solid Colors
                     showColorPicker();
+                    break;
+                case 3: // Custom Wallpaper
+                    showCustomWallpaperOptions();
                     break;
             }
         });
@@ -241,17 +264,124 @@ public class SettingsActivity extends AppCompatActivity {
         builder.show();
     }
     
+    private void openGalleryForWallpaper() {
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setType("image/*");
+        try {
+            wallpaperPickerLauncher.launch(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening gallery: " + e.getMessage(), e);
+            Toast.makeText(this, "Error opening gallery", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void saveWallpaperImage(String imageUriString) {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        prefs.edit().putString("wallpaper_uri", imageUriString).apply();
+        prefs.edit().putString("wallpaper_type", "image").apply();
+    }
+    
+    private void applyWallpaper(Uri imageUri) {
+        // Send broadcast to notify wallpaper change - MainActivity will handle this
+        Intent intent = new Intent("com.example.whereismysamaan.WALLPAPER_CHANGED");
+        intent.putExtra("wallpaper_uri", imageUri.toString());
+        intent.putExtra("wallpaper_type", "image");
+        sendBroadcast(intent);
+    }
+    
+    private void showDefaultWallpapers() {
+        // Default wallpaper resource IDs
+        final int[] wallpaperResources = {
+            R.drawable.ic_home, // Replace with actual wallpapers
+            R.drawable.ic_office,
+            R.drawable.ic_warehouse,
+            R.drawable.ic_shop,
+            R.drawable.ic_car
+        };
+        
+        // Create a grid view or recycler view to display wallpaper thumbnails
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Default Wallpaper");
+        
+        // Simplified for now - would typically use a GridView
+        builder.setItems(new String[]{"Wallpaper 1", "Wallpaper 2", "Wallpaper 3", "Wallpaper 4", "Wallpaper 5"}, 
+            (dialog, which) -> {
+                // Save selected default wallpaper
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                prefs.edit().putInt("default_wallpaper_resource", wallpaperResources[which]).apply();
+                prefs.edit().putString("wallpaper_type", "default").apply();
+                
+                // Notify MainActivity about wallpaper change
+                Intent intent = new Intent("com.example.whereismysamaan.WALLPAPER_CHANGED");
+                intent.putExtra("wallpaper_type", "default");
+                intent.putExtra("wallpaper_resource_id", wallpaperResources[which]);
+                sendBroadcast(intent);
+                
+                Toast.makeText(this, "Default wallpaper applied", Toast.LENGTH_SHORT).show();
+            }
+        );
+        
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+    
+    private void showCustomWallpaperOptions() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Custom Wallpaper Options");
+        
+        final String[] customOptions = {"Create from Text", "Create Pattern", "Use URL"};
+        
+        builder.setItems(customOptions, (dialog, which) -> {
+            switch (which) {
+                case 0: // Create from Text
+                    showTextWallpaperCreator();
+                    break;
+                case 1: // Create Pattern
+                    showPatternWallpaperCreator();
+                    break;
+                case 2: // Use URL
+                    showUrlWallpaperInput();
+                    break;
+            }
+        });
+        
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+    
+    private void showTextWallpaperCreator() {
+        // Implementation for custom text wallpaper
+        Toast.makeText(this, "Text wallpaper feature coming soon", Toast.LENGTH_SHORT).show();
+    }
+    
+    private void showPatternWallpaperCreator() {
+        // Implementation for pattern wallpaper
+        Toast.makeText(this, "Pattern wallpaper feature coming soon", Toast.LENGTH_SHORT).show();
+    }
+    
+    private void showUrlWallpaperInput() {
+        // Implementation for URL wallpaper
+        Toast.makeText(this, "URL wallpaper feature coming soon", Toast.LENGTH_SHORT).show();
+    }
+    
     private void showColorPicker() {
         final String[] colors = {"White", "Light Gray", "Light Blue", "Light Green", "Light Yellow", "Orange"};
+        final String[] colorValues = {"#FFFFFF", "#F5F5F5", "#E3F2FD", "#E8F5E9", "#FFFDE7", "#FFF3E0"};
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Select Background Color");
         
         builder.setItems(colors, (dialog, which) -> {
-            String selectedColor = colors[which];
-            saveBackgroundColor(selectedColor);
+            saveBackgroundColor(colorValues[which]);
+            
+            // Notify MainActivity about color change
+            Intent intent = new Intent("com.example.whereismysamaan.WALLPAPER_CHANGED");
+            intent.putExtra("wallpaper_type", "color");
+            intent.putExtra("color_value", colorValues[which]);
+            sendBroadcast(intent);
+            
             Toast.makeText(SettingsActivity.this, 
-                    "Background color set to " + selectedColor, 
+                    "Background color set to " + colors[which], 
                     Toast.LENGTH_SHORT).show();
         });
         
@@ -259,25 +389,31 @@ public class SettingsActivity extends AppCompatActivity {
         builder.show();
     }
     
-    private void saveBackgroundColor(String colorName) {
+    private void saveBackgroundColor(String colorValue) {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        prefs.edit().putString("background_color", colorName).apply();
+        prefs.edit().putString("background_color", colorValue).apply();
+        prefs.edit().putString("wallpaper_type", "color").apply();
     }
     
     private void showThemeOptions() {
-        final String[] themes = {"Light", "Dark", "System Default"};
+        final String[] themes = {"Light Mode", "Dark Mode", "High Contrast", "Orange", "Blue", "Green"};
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Select Theme");
         
+        // Get current theme preference
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        int selectedTheme = prefs.getInt("theme_mode", 0); // Default to Light (index 0)
+        int selectedTheme = prefs.getInt("selected_theme", 0); // Default to Light Mode
         
         builder.setSingleChoiceItems(themes, selectedTheme, (dialog, which) -> {
-            prefs.edit().putInt("theme_mode", which).apply();
+            // Save theme preference
+            prefs.edit().putInt("selected_theme", which).apply();
+            
+            // Apply the theme
+            applyTheme(which);
             
             Toast.makeText(SettingsActivity.this, 
-                    "Theme set to " + themes[which] + "\nRestart app to apply changes", 
+                    "Theme set to " + themes[which], 
                     Toast.LENGTH_SHORT).show();
             dialog.dismiss();
         });
@@ -286,26 +422,65 @@ public class SettingsActivity extends AppCompatActivity {
         builder.show();
     }
     
+    private void applyTheme(int themeIndex) {
+        // Send broadcast to notify theme change
+        Intent intent = new Intent("com.example.whereismysamaan.THEME_CHANGED");
+        intent.putExtra("theme_index", themeIndex);
+        sendBroadcast(intent);
+        
+        // You can implement immediate theme change here
+        // This would require implementing a ThemeManager class to handle theme application
+        // For demonstration purposes, we're just showing a toast
+        Toast.makeText(this, "Theme will apply on app restart", Toast.LENGTH_SHORT).show();
+    }
+    
     private void showFontSizeOptions() {
-        final String[] sizes = {"Small", "Medium", "Large", "Extra Large"};
+        final String[] fontSizes = {"Small", "Medium (Default)", "Large", "Extra Large"};
+        final float[] fontScaleValues = {0.85f, 1.0f, 1.15f, 1.3f};
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Select Font Size");
         
+        // Get current font size preference
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        int selectedSize = prefs.getInt("font_size", 1); // Default to Medium (index 1)
+        float currentScale = prefs.getFloat("font_scale", 1.0f);
+        int selectedIndex = 1; // Default to Medium
         
-        builder.setSingleChoiceItems(sizes, selectedSize, (dialog, which) -> {
-            prefs.edit().putInt("font_size", which).apply();
+        // Find the closest match to the current scale
+        for (int i = 0; i < fontScaleValues.length; i++) {
+            if (Math.abs(currentScale - fontScaleValues[i]) < 0.05f) {
+                selectedIndex = i;
+                break;
+            }
+        }
+        
+        builder.setSingleChoiceItems(fontSizes, selectedIndex, (dialog, which) -> {
+            // Save font size preference
+            prefs.edit().putFloat("font_scale", fontScaleValues[which]).apply();
+            
+            // Apply font size
+            applyFontSize(fontScaleValues[which]);
             
             Toast.makeText(SettingsActivity.this, 
-                    "Font size set to " + sizes[which] + "\nRestart app to apply changes", 
+                    "Font size set to " + fontSizes[which], 
                     Toast.LENGTH_SHORT).show();
             dialog.dismiss();
         });
         
         builder.setNegativeButton("Cancel", null);
         builder.show();
+    }
+    
+    private void applyFontSize(float scale) {
+        // Send broadcast to notify font size change
+        Intent intent = new Intent("com.example.whereismysamaan.FONT_SIZE_CHANGED");
+        intent.putExtra("font_scale", scale);
+        sendBroadcast(intent);
+        
+        // Display a message about app restart
+        if (scale != 1.0f) {
+            Toast.makeText(this, "Font size will fully apply on app restart", Toast.LENGTH_SHORT).show();
+        }
     }
     
     private void saveNotificationSettings(String key, boolean isEnabled) {

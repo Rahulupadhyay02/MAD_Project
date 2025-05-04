@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp">
+
+        <!-- Message Icon -->
+        <ImageView
+            android:id="@+id/iv_message_icon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_message"
+            android:contentDescription="Message icon"
+            android:layout_gravity="center_vertical" />
+
+        <!-- Message Content -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp">
+
+            <TextView
+                android:id="@+id/tv_message_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/black"
+                tools:text="Shared Item: Book" />
+
+            <TextView
+                android:id="@+id/tv_message_content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:layout_marginTop="4dp"
+                tools:text="Location: Bedroom > Shelf" />
+
+            <TextView
+                android:id="@+id/tv_message_sender"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textStyle="italic"
+                android:layout_marginTop="4dp"
+                tools:text="From: John Doe" />
+        </LinearLayout>
+
+        <!-- Unread Indicator -->
+        <View
+            android:id="@+id/view_unread_indicator"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:background="@drawable/circle_blue"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:visibility="visible" />
+    </LinearLayout>
+</androidx.cardview.widget.CardView> 

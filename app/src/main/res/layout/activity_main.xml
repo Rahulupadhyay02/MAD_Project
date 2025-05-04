@@ -15,97 +15,110 @@
         android:layout_height="match_parent">
 
         <!-- Top toolbar with orange background -->
-        <LinearLayout
+        <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="140dp"
+            android:layout_height="150dp"
             android:background="@color/orange"
-            android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="20dp"
+            android:paddingBottom="20dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
-            <!-- Menu Button -->
-            <ImageView
-                android:id="@+id/iv_menu"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="top"
-                android:contentDescription="@string/menu"
-                android:src="@drawable/ic_menu" />
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
 
-            <androidx.cardview.widget.CardView
-                android:id="@+id/search_card"
-                android:layout_width="0dp"
-                android:layout_height="50dp"
-                android:layout_gravity="bottom"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:layout_weight="10"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="0dp">
+                <!-- Menu Button - Top Left -->
+                <ImageView
+                    android:id="@+id/iv_menu"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:contentDescription="@string/menu"
+                    android:src="@drawable/ic_menu"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
 
-                <LinearLayout
+                <!-- Profile Button - Top Right -->
+                <ImageView
+                    android:id="@+id/iv_profile"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:contentDescription="@string/profile"
+                    android:src="@drawable/ic_profile"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <!-- Message Button - Top Right before Profile -->
+                <ImageView
+                    android:id="@+id/iv_message"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginEnd="12dp"
+                    android:contentDescription="@string/message"
+                    android:src="@drawable/ic_message"
+                    app:layout_constraintEnd_toStartOf="@+id/iv_profile"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <!-- Notification Button - Top Right before Message -->
+                <ImageView
+                    android:id="@+id/iv_notification"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginEnd="12dp"
+                    android:contentDescription="@string/notification"
+                    android:src="@drawable/ic_notification"
+                    app:layout_constraintEnd_toStartOf="@+id/iv_message"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <!-- Search Bar - Bottom Center with Full Width -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/search_card"
                     android:layout_width="match_parent"
-                    android:layout_height="46dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="8dp">
+                    android:layout_height="56dp"
+                    android:layout_marginTop="8dp"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="2dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent">
 
-                    <EditText
-                        android:id="@+id/et_search"
-                        android:layout_width="0dp"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:autofillHints="search"
-                        android:background="@null"
-                        android:hint="@string/search_hint"
-                        android:inputType="text"
-                        android:textSize="16sp"
-                        android:paddingStart="4dp"
-                        android:paddingEnd="4dp" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="16dp">
 
-                    <ImageView
-                        android:id="@+id/iv_search"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:contentDescription="@string/search"
-                        android:src="@drawable/ic_search" />
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
+                        <EditText
+                            android:id="@+id/et_search"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:autofillHints="search"
+                            android:background="@null"
+                            android:hint="@string/search_hint"
+                            android:inputType="text"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
+                            android:textColorHint="#9E9E9E"
+                            android:textSize="18sp" />
 
-            <!-- Notification Button -->
-            <ImageView
-                android:id="@+id/iv_notification"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="top"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="@string/notification"
-                android:src="@drawable/ic_notification" />
-
-            <!-- Message Button -->
-            <ImageView
-                android:id="@+id/iv_message"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="top"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="@string/message"
-                android:src="@drawable/ic_message" />
-
-            <!-- Profile Button -->
-            <ImageView
-                android:id="@+id/iv_profile"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="top"
-                android:contentDescription="@string/profile"
-                android:src="@drawable/ic_profile" />
-        </LinearLayout>
+                        <ImageView
+                            android:id="@+id/iv_search"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:contentDescription="@string/search"
+                            android:padding="4dp"
+                            android:src="@drawable/ic_search" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.appcompat.widget.Toolbar>
 
         <!-- Grid of location types -->
         <GridLayout

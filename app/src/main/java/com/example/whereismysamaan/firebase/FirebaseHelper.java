@@ -4,6 +4,7 @@ import android.net.Uri;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import com.example.whereismysamaan.model.Location;
+import com.example.whereismysamaan.model.Message;
 import com.example.whereismysamaan.model.Saaman;
 import com.example.whereismysamaan.model.Sublocation;
 import com.example.whereismysamaan.model.User;
@@ -20,8 +21,10 @@ import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.google.firebase.storage.StorageException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class FirebaseHelper {
@@ -82,6 +85,58 @@ public class FirebaseHelper {
         } else {
             Log.e(TAG, "Unable to sign out: auth is null");
         }
+    }
+
+    /**
+     * Deletes the current user account and all associated data
+     * @param listener Listener to handle completion of the task
+     */
+    public void deleteUserAccount(OnTaskCompleteListener<Void> listener) {
+        FirebaseUser user = getCurrentUser();
+        if (user == null) {
+            Log.e(TAG, "Cannot delete user account: User not logged in");
+            if (listener != null) {
+                listener.onComplete(null);
+            }
+            return;
+        }
+
+        String userId = user.getUid();
+        Log.d(TAG, "Attempting to delete user account: " + userId);
+        
+        // First, delete all user data from the database
+        database.child("users").child(userId).removeValue()
+            .addOnCompleteListener(databaseTask -> {
+                if (databaseTask.isSuccessful()) {
+                    Log.d(TAG, "Successfully deleted user data from database");
+                    
+                    // Then, delete any profile images from storage
+                    StorageReference storageRef = storage.getReference().child("profile_images").child(userId);
+                    storageRef.delete().addOnCompleteListener(storageTask -> {
+                        Log.d(TAG, "Profile image deletion " + 
+                            (storageTask.isSuccessful() ? "successful" : "failed or not found"));
+                        
+                        // Finally, delete the authentication account
+                        user.delete().addOnCompleteListener(authTask -> {
+                            if (authTask.isSuccessful()) {
+                                Log.d(TAG, "Successfully deleted user authentication account");
+                            } else {
+                                Log.e(TAG, "Failed to delete user authentication account", 
+                                    authTask.getException());
+                            }
+                            
+                            if (listener != null) {
+                                listener.onComplete(authTask);
+                            }
+                        });
+                    });
+                } else {
+                    Log.e(TAG, "Failed to delete user data from database", databaseTask.getException());
+                    if (listener != null) {
+                        listener.onComplete(databaseTask);
+                    }
+                }
+            });
     }
 
     public FirebaseUser getCurrentUser() {
@@ -521,6 +576,335 @@ public class FirebaseHelper {
         });
     }
 
+    /**
+     * Upload any image to Firebase Storage and get the download URL
+     * 
+     * @param imageUri The URI of the image to upload
+     * @param storagePath The path in Firebase Storage where to store the image
+     * @param listener Callback for when the upload is complete
+     */
+    public void uploadImage(Uri imageUri, String storagePath, OnTaskCompleteListener<String> listener) {
+        if (imageUri == null) {
+            Log.e(TAG, "uploadImage: Image URI is null");
+            if (listener != null) {
+                listener.onComplete(null);
+            }
+            return;
+        }
+        
+        String userId = getCurrentUserId();
+        if (userId == null) {
+            Log.e(TAG, "uploadImage: User not logged in");
+            if (listener != null) {
+                listener.onComplete(null);
+            }
+            return;
+        }
+        
+        Log.d(TAG, "uploadImage: Starting upload for URI: " + imageUri);
+        Log.d(TAG, "uploadImage: Uploading to path: " + storagePath);
+        
+        try {
+            // Verify Firebase Storage is initialized
+            if (storage == null) {
+                Log.e(TAG, "uploadImage: Firebase Storage is null");
+                if (listener != null) {
+                    listener.onComplete(null);
+                }
+                return;
+            }
+            
+            // Log Firebase configuration
+            Log.d(TAG, "uploadImage: Firebase Storage bucket: " + storage.getReference().getBucket());
+            
+            // Create a reference to the storage location
+            StorageReference storageRef = storage.getReference().child(storagePath);
+            Log.d(TAG, "uploadImage: Storage reference path: " + storageRef.getPath());
+            
+            // Start upload task
+            UploadTask uploadTask;
+            try {
+                uploadTask = storageRef.putFile(imageUri);
+                Log.d(TAG, "uploadImage: Upload task started successfully");
+            } catch (Exception e) {
+                Log.e(TAG, "uploadImage: Failed to start upload task", e);
+                if (listener != null) {
+                    listener.onComplete(null);
+                }
+                return;
+            }
+            
+            // Add progress listener for debugging
+            uploadTask.addOnProgressListener(taskSnapshot -> {
+                double progress = (100.0 * taskSnapshot.getBytesTransferred()) / taskSnapshot.getTotalByteCount();
+                Log.d(TAG, "uploadImage: Upload is " + progress + "% done");
+            });
+            
+            // Handle failures specifically
+            uploadTask.addOnFailureListener(e -> {
+                Log.e(TAG, "uploadImage: Upload failed with error: " + e.getMessage(), e);
+                
+                // Identify specific Firebase Storage error
+                if (e instanceof StorageException) {
+                    StorageException storageException = (StorageException) e;
+                    int errorCode = storageException.getErrorCode();
+                    String errorMessage = "Unknown storage error";
+                    
+                    // Map error codes to human-readable messages
+                    switch (errorCode) {
+                        case StorageException.ERROR_BUCKET_NOT_FOUND:
+                            errorMessage = "Storage bucket not found";
+                            break;
+                        case StorageException.ERROR_NOT_AUTHENTICATED:
+                            errorMessage = "User not authenticated";
+                            break;
+                        case StorageException.ERROR_NOT_AUTHORIZED:
+                            errorMessage = "Not authorized to access storage";
+                            break;
+                        case StorageException.ERROR_RETRY_LIMIT_EXCEEDED:
+                            errorMessage = "Retry limit exceeded";
+                            break;
+                        case StorageException.ERROR_QUOTA_EXCEEDED:
+                            errorMessage = "Storage quota exceeded";
+                            break;
+                        default:
+                            errorMessage = "Storage error code: " + errorCode;
+                    }
+                    
+                    Log.e(TAG, "uploadImage: " + errorMessage);
+                }
+                
+                if (listener != null) {
+                    listener.onComplete(null);
+                }
+            });
+            
+            // On success, get the download URL
+            uploadTask.continueWithTask(task -> {
+                if (!task.isSuccessful()) {
+                    Log.e(TAG, "uploadImage: Upload task unsuccessful", task.getException());
+                    throw task.getException();
+                }
+                
+                // Continue with the task to get the download URL
+                return storageRef.getDownloadUrl();
+            }).addOnCompleteListener(task -> {
+                if (task.isSuccessful() && task.getResult() != null) {
+                    Uri downloadUri = task.getResult();
+                    String downloadUrl = downloadUri.toString();
+                    
+                    Log.d(TAG, "uploadImage: Upload successful, URL: " + downloadUrl);
+                    
+                    // Create a wrapper Task with the String URL
+                    Task<String> stringTask = Tasks.forResult(downloadUrl);
+                    
+                    if (listener != null) {
+                        listener.onComplete(stringTask);
+                    }
+                } else {
+                    Log.e(TAG, "uploadImage: Failed to get download URL", task.getException());
+                    if (listener != null) {
+                        listener.onComplete(null);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "uploadImage: Unexpected error during upload", e);
+            if (listener != null) {
+                listener.onComplete(null);
+            }
+        }
+    }
+
+    // =========================
+    // Message Methods
+    // =========================
+    
+    /**
+     * Send a message to another user
+     * 
+     * @param message Message object to send
+     * @param listener Listener to handle completion
+     */
+    public void sendMessage(Message message, OnTaskCompleteListener<Void> listener) {
+        if (message == null) {
+            Log.e(TAG, "sendMessage: Message is null");
+            if (listener != null) {
+                listener.onComplete(null);
+            }
+            return;
+        }
+        
+        // Validate sender and receiver
+        if (message.getSenderId() == null || message.getReceiverId() == null) {
+            Log.e(TAG, "sendMessage: Sender or receiver ID is null");
+            if (listener != null) {
+                listener.onComplete(null);
+            }
+            return;
+        }
+        
+        Log.d(TAG, "sendMessage: Sending message from " + message.getSenderId() + " to " + message.getReceiverId());
+        
+        // Save to the recipient's messages collection
+        DatabaseReference messageRef = database.child("users").child(message.getReceiverId())
+                .child("messages").child(message.getId());
+        
+        messageRef.setValue(message)
+            .addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    Log.d(TAG, "sendMessage: Message sent successfully");
+                } else {
+                    Log.e(TAG, "sendMessage: Failed to send message", task.getException());
+                }
+                
+                if (listener != null) {
+                    listener.onComplete(task);
+                }
+            });
+    }
+    
+    /**
+     * Get all messages for the current user
+     * 
+     * @param listener Listener to handle loaded messages
+     */
+    public void getMessages(OnMessagesLoadedListener listener) {
+        String userId = getCurrentUserId();
+        if (userId == null) {
+            Log.e(TAG, "getMessages: User not logged in");
+            if (listener != null) {
+                listener.onError("User not logged in");
+            }
+            return;
+        }
+        
+        Log.d(TAG, "getMessages: Getting messages for user ID: " + userId);
+        
+        DatabaseReference messagesRef = database.child("users").child(userId).child("messages");
+        messagesRef.orderByChild("timestamp").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                List<Message> messages = new ArrayList<>();
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    Message message = snapshot.getValue(Message.class);
+                    if (message != null) {
+                        messages.add(message);
+                    }
+                }
+                
+                // Sort by timestamp in descending order (newest first)
+                Collections.sort(messages, (m1, m2) -> Long.compare(m2.getTimestamp(), m1.getTimestamp()));
+                
+                Log.d(TAG, "getMessages: Retrieved " + messages.size() + " messages");
+                if (listener != null) {
+                    listener.onMessagesLoaded(messages);
+                }
+            }
+            
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e(TAG, "getMessages: Failed to get messages", databaseError.toException());
+                if (listener != null) {
+                    listener.onError(databaseError.getMessage());
+                }
+            }
+        });
+    }
+    
+    /**
+     * Mark a message as read
+     * 
+     * @param messageId ID of the message to mark as read
+     * @param listener Listener to handle completion
+     */
+    public void markMessageAsRead(String messageId, OnTaskCompleteListener<Void> listener) {
+        String userId = getCurrentUserId();
+        if (userId == null) {
+            Log.e(TAG, "markMessageAsRead: User not logged in");
+            if (listener != null) {
+                listener.onComplete(null);
+            }
+            return;
+        }
+        
+        Log.d(TAG, "markMessageAsRead: Marking message " + messageId + " as read");
+        
+        DatabaseReference messageRef = database.child("users").child(userId)
+                .child("messages").child(messageId).child("read");
+        
+        messageRef.setValue(true)
+            .addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    Log.d(TAG, "markMessageAsRead: Message marked as read successfully");
+                } else {
+                    Log.e(TAG, "markMessageAsRead: Failed to mark message as read", task.getException());
+                }
+                
+                if (listener != null) {
+                    listener.onComplete(task);
+                }
+            });
+    }
+    
+    /**
+     * Get all app users for selecting message recipients
+     * 
+     * @param listener Listener to handle loaded users
+     */
+    public void getAllUsers(OnUsersLoadedListener listener) {
+        String currentUserId = getCurrentUserId();
+        if (currentUserId == null) {
+            Log.e(TAG, "getAllUsers: User not logged in");
+            if (listener != null) {
+                listener.onError("User not logged in");
+            }
+            return;
+        }
+        
+        Log.d(TAG, "getAllUsers: Getting all users");
+        
+        DatabaseReference usersRef = database.child("users");
+        usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                List<User> users = new ArrayList<>();
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    // Get the user ID (which is the key)
+                    String userId = snapshot.getKey();
+                    
+                    // Skip the current user
+                    if (userId.equals(currentUserId)) {
+                        continue;
+                    }
+                    
+                    // Get the user's profile
+                    DataSnapshot profileSnapshot = snapshot.child("profile");
+                    User user = profileSnapshot.getValue(User.class);
+                    
+                    if (user != null) {
+                        // Make sure the ID is set
+                        user.setId(userId);
+                        users.add(user);
+                    }
+                }
+                
+                Log.d(TAG, "getAllUsers: Retrieved " + users.size() + " users");
+                if (listener != null) {
+                    listener.onUsersLoaded(users);
+                }
+            }
+            
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e(TAG, "getAllUsers: Failed to get users", databaseError.toException());
+                if (listener != null) {
+                    listener.onError(databaseError.getMessage());
+                }
+            }
+        });
+    }
+
     // =========================
     // Interfaces
     // =========================
@@ -547,5 +931,71 @@ public class FirebaseHelper {
     public interface OnUserProfileLoadedListener {
         void onUserProfileLoaded(User user);
         void onError(String error);
+    }
+
+    public interface OnMessagesLoadedListener {
+        void onMessagesLoaded(List<Message> messages);
+        void onError(String error);
+    }
+    
+    public interface OnUsersLoadedListener {
+        void onUsersLoaded(List<User> users);
+        void onError(String error);
+    }
+
+    /**
+     * Checks if Firebase Storage rules might be causing permission issues
+     * This is a diagnostic method to help troubleshoot upload problems
+     */
+    public void checkStorageRules() {
+        Log.d(TAG, "Checking Firebase Storage rules and permissions");
+        
+        // Check if user is authenticated
+        String userId = getCurrentUserId();
+        if (userId == null) {
+            Log.e(TAG, "User not logged in - Firebase Storage rules may deny access");
+            return;
+        }
+        
+        // Log Storage bucket info
+        try {
+            String bucket = storage.getReference().getBucket();
+            Log.d(TAG, "Firebase Storage bucket: " + bucket);
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting Storage bucket info", e);
+        }
+        
+        // Try a test write to check permissions
+        StorageReference testRef = storage.getReference().child("permission_test").child(userId + "_test.txt");
+        byte[] testData = "test".getBytes();
+        
+        testRef.putBytes(testData)
+            .addOnSuccessListener(taskSnapshot -> {
+                Log.d(TAG, "Storage permission test passed - can write to Firebase Storage");
+                
+                // Clean up test file
+                testRef.delete().addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Log.d(TAG, "Test file deleted successfully");
+                    } else {
+                        Log.w(TAG, "Failed to delete test file", task.getException());
+                    }
+                });
+            })
+            .addOnFailureListener(e -> {
+                if (e instanceof StorageException) {
+                    StorageException storageException = (StorageException) e;
+                    int errorCode = storageException.getErrorCode();
+                    
+                    if (errorCode == StorageException.ERROR_NOT_AUTHORIZED) {
+                        Log.e(TAG, "STORAGE PERMISSION ERROR: Not authorized to access Firebase Storage");
+                        Log.e(TAG, "This is likely due to Firebase Storage security rules that need to be updated");
+                    } else {
+                        Log.e(TAG, "Storage permission test failed with code: " + errorCode, e);
+                    }
+                } else {
+                    Log.e(TAG, "Storage permission test failed", e);
+                }
+            });
     }
 } 
