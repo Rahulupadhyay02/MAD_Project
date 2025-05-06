@@ -2,6 +2,7 @@ package com.example.whereismysamaan;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -102,7 +103,7 @@ public class MessageActivity extends AppCompatActivity {
                 // Hide loading indicator
                 swipeRefresh.setRefreshing(false);
                 
-                // Update adapter
+                // Update adapter with all message data
                 adapter.setMessageList(messages);
                 
                 // Update empty view visibility
@@ -131,20 +132,34 @@ public class MessageActivity extends AppCompatActivity {
     }
     
     private void viewMessageDetails(Message message) {
-        // Mark the message as read
-        firebaseHelper.markMessageAsRead(message.getId(), null);
-        
-        // Create intent for the message details activity
-        Intent intent = new Intent(this, MessageDetailActivity.class);
-        intent.putExtra(MessageDetailActivity.EXTRA_MESSAGE_ID, message.getId());
-        intent.putExtra(MessageDetailActivity.EXTRA_MESSAGE_TITLE, message.getTitle());
-        intent.putExtra(MessageDetailActivity.EXTRA_MESSAGE_CONTENT, message.getContent());
-        intent.putExtra(MessageDetailActivity.EXTRA_SENDER_NAME, message.getSenderName());
-        intent.putExtra(MessageDetailActivity.EXTRA_SAAMAN_NAME, message.getSaamanName());
-        intent.putExtra(MessageDetailActivity.EXTRA_SAAMAN_IMAGE_URL, message.getSaamanImageUrl());
-        intent.putExtra(MessageDetailActivity.EXTRA_LOCATION_NAME, message.getLocationName());
-        intent.putExtra(MessageDetailActivity.EXTRA_SUBLOCATION_NAME, message.getSublocationName());
-        
-        startActivity(intent);
+        try {
+            // Mark the message as read
+            firebaseHelper.markMessageAsRead(message.getId(), null);
+            
+            Log.d(TAG, "Opening message details - ID: " + message.getId());
+            
+            // Create intent for the message details activity
+            Intent intent = new Intent(this, MessageDetailActivity.class);
+            intent.putExtra(MessageDetailActivity.EXTRA_MESSAGE_ID, message.getId());
+            intent.putExtra(MessageDetailActivity.EXTRA_MESSAGE_TITLE, message.getTitle());
+            intent.putExtra(MessageDetailActivity.EXTRA_MESSAGE_CONTENT, message.getContent());
+            intent.putExtra(MessageDetailActivity.EXTRA_SENDER_NAME, message.getSenderName());
+            intent.putExtra(MessageDetailActivity.EXTRA_SAAMAN_NAME, message.getSaamanName());
+            intent.putExtra(MessageDetailActivity.EXTRA_LOCATION_NAME, message.getLocationName());
+            intent.putExtra(MessageDetailActivity.EXTRA_SUBLOCATION_NAME, message.getSublocationName());
+            intent.putExtra(MessageDetailActivity.EXTRA_IS_IMAGE_BASE64, message.isImageBase64());
+            intent.putExtra(MessageDetailActivity.EXTRA_SAAMAN_IMAGE_URL, message.getSaamanImageUrl());
+            
+            // Add message IDs for reference
+            intent.putExtra("sender_id", message.getSenderId());
+            intent.putExtra("receiver_id", message.getReceiverId());
+            intent.putExtra("saaman_id", message.getSaamanId());
+            
+            // Start the activity
+            startActivity(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "Error viewing message details: " + e.getMessage(), e);
+            Toast.makeText(this, "Error viewing message: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 } 

@@ -727,39 +727,55 @@ public class FirebaseHelper {
      * @param listener Listener to handle completion
      */
     public void sendMessage(Message message, OnTaskCompleteListener<Void> listener) {
-        if (message == null) {
-            Log.e(TAG, "sendMessage: Message is null");
+        String currentUserId = getCurrentUserId();
+        if (currentUserId == null) {
+            Log.e(TAG, "sendMessage: User not logged in");
             if (listener != null) {
                 listener.onComplete(null);
             }
             return;
         }
         
-        // Validate sender and receiver
-        if (message.getSenderId() == null || message.getReceiverId() == null) {
-            Log.e(TAG, "sendMessage: Sender or receiver ID is null");
-            if (listener != null) {
-                listener.onComplete(null);
-            }
-            return;
+        Log.d(TAG, "sendMessage: Sending message to user: " + message.getReceiverId());
+        
+        // Set content
+        message.setContent("Shared " + message.getSaamanName() + " with you.");
+        
+        // Set as unread initially
+        message.setRead(false);
+
+        if (message.getTitle() == null || message.getTitle().isEmpty()) {
+            message.setTitle("Shared Saaman");
         }
         
-        Log.d(TAG, "sendMessage: Sending message from " + message.getSenderId() + " to " + message.getReceiverId());
+        // Set timestamp
+        message.setTimestamp(System.currentTimeMillis());
         
-        // Save to the recipient's messages collection
-        DatabaseReference messageRef = database.child("users").child(message.getReceiverId())
-                .child("messages").child(message.getId());
-        
-        messageRef.setValue(message)
+        // Save to sender's list (for reference)
+        database.child("messages").child(message.getId()).setValue(message)
             .addOnCompleteListener(task -> {
                 if (task.isSuccessful()) {
-                    Log.d(TAG, "sendMessage: Message sent successfully");
+                    Log.d(TAG, "sendMessage: Message saved successfully");
+                    
+                    // Also add to recipient's list
+                    database.child("user_messages").child(message.getReceiverId()).child(message.getId()).setValue(true)
+                        .addOnCompleteListener(recipientTask -> {
+                            if (recipientTask.isSuccessful()) {
+                                Log.d(TAG, "sendMessage: Message added to recipient's list");
+                            } else {
+                                Log.e(TAG, "sendMessage: Failed to add message to recipient's list", 
+                                    recipientTask.getException());
+                            }
+                            
+                            if (listener != null) {
+                                listener.onComplete(recipientTask);
+                            }
+                        });
                 } else {
-                    Log.e(TAG, "sendMessage: Failed to send message", task.getException());
-                }
-                
-                if (listener != null) {
-                    listener.onComplete(task);
+                    Log.e(TAG, "sendMessage: Failed to save message", task.getException());
+                    if (listener != null) {
+                        listener.onComplete(task);
+                    }
                 }
             });
     }
@@ -781,24 +797,73 @@ public class FirebaseHelper {
         
         Log.d(TAG, "getMessages: Getting messages for user ID: " + userId);
         
-        DatabaseReference messagesRef = database.child("users").child(userId).child("messages");
-        messagesRef.orderByChild("timestamp").addValueEventListener(new ValueEventListener() {
+        // Get references to user's messages
+        DatabaseReference userMessagesRef = database.child("user_messages").child(userId);
+        userMessagesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                List<Message> messages = new ArrayList<>();
-                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                    Message message = snapshot.getValue(Message.class);
-                    if (message != null) {
-                        messages.add(message);
+                if (!dataSnapshot.exists() || !dataSnapshot.hasChildren()) {
+                    Log.d(TAG, "getMessages: No messages found for user");
+                    if (listener != null) {
+                        listener.onMessagesLoaded(new ArrayList<>());
                     }
+                    return;
                 }
                 
-                // Sort by timestamp in descending order (newest first)
-                Collections.sort(messages, (m1, m2) -> Long.compare(m2.getTimestamp(), m1.getTimestamp()));
+                // Count how many messages we need to load
+                final int totalMessages = (int) dataSnapshot.getChildrenCount();
+                final List<Message> messages = new ArrayList<>();
+                final int[] loadedCount = {0}; // Use array to modify in inner class
                 
-                Log.d(TAG, "getMessages: Retrieved " + messages.size() + " messages");
-                if (listener != null) {
-                    listener.onMessagesLoaded(messages);
+                // Iterate through message IDs
+                for (DataSnapshot messageIdSnapshot : dataSnapshot.getChildren()) {
+                    String messageId = messageIdSnapshot.getKey();
+                    
+                    // Get the actual message data
+                    database.child("messages").child(messageId).addListenerForSingleValueEvent(
+                            new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot messageSnapshot) {
+                            loadedCount[0]++;
+                            
+                            if (messageSnapshot.exists()) {
+                                Message message = messageSnapshot.getValue(Message.class);
+                                if (message != null) {
+                                    messages.add(message);
+                                }
+                            }
+                            
+                            // If we've loaded all messages, return the result
+                            if (loadedCount[0] >= totalMessages) {
+                                // Sort by timestamp in descending order (newest first)
+                                Collections.sort(messages, (m1, m2) -> 
+                                        Long.compare(m2.getTimestamp(), m1.getTimestamp()));
+                                
+                                Log.d(TAG, "getMessages: Retrieved " + messages.size() + " messages");
+                                if (listener != null) {
+                                    listener.onMessagesLoaded(messages);
+                                }
+                            }
+                        }
+                        
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError databaseError) {
+                            loadedCount[0]++;
+                            Log.e(TAG, "getMessages: Error loading message: " + databaseError.getMessage());
+                            
+                            // If we've tried to load all messages, return what we have so far
+                            if (loadedCount[0] >= totalMessages) {
+                                // Sort by timestamp in descending order (newest first)
+                                Collections.sort(messages, (m1, m2) -> 
+                                        Long.compare(m2.getTimestamp(), m1.getTimestamp()));
+                                
+                                Log.d(TAG, "getMessages: Retrieved " + messages.size() + " messages (with some errors)");
+                                if (listener != null) {
+                                    listener.onMessagesLoaded(messages);
+                                }
+                            }
+                        }
+                    });
                 }
             }
             
@@ -819,9 +884,8 @@ public class FirebaseHelper {
      * @param listener Listener to handle completion
      */
     public void markMessageAsRead(String messageId, OnTaskCompleteListener<Void> listener) {
-        String userId = getCurrentUserId();
-        if (userId == null) {
-            Log.e(TAG, "markMessageAsRead: User not logged in");
+        if (messageId == null) {
+            Log.e(TAG, "markMessageAsRead: Message ID is null");
             if (listener != null) {
                 listener.onComplete(null);
             }
@@ -830,8 +894,8 @@ public class FirebaseHelper {
         
         Log.d(TAG, "markMessageAsRead: Marking message " + messageId + " as read");
         
-        DatabaseReference messageRef = database.child("users").child(userId)
-                .child("messages").child(messageId).child("read");
+        // Update the read status in the messages node
+        DatabaseReference messageRef = database.child("messages").child(messageId).child("read");
         
         messageRef.setValue(true)
             .addOnCompleteListener(task -> {
@@ -905,6 +969,94 @@ public class FirebaseHelper {
         });
     }
 
+    /**
+     * Get a location name by its ID
+     * @param locationId The ID of the location
+     * @param listener Listener to handle the loaded name
+     */
+    public void getLocationName(String locationId, OnNameLoadedListener listener) {
+        if (!isUserLoggedIn()) {
+            Log.e(TAG, "Cannot get location name: User not logged in");
+            if (listener != null) {
+                listener.onError("User not logged in");
+            }
+            return;
+        }
+        
+        String userId = getCurrentUserId();
+        database.child("users").child(userId).child("locations").child(locationId).child("name")
+            .addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    String name = snapshot.getValue(String.class);
+                    if (name != null) {
+                        Log.d(TAG, "Retrieved location name: " + name);
+                        if (listener != null) {
+                            listener.onNameLoaded(name);
+                        }
+                    } else {
+                        Log.e(TAG, "Location name not found for ID: " + locationId);
+                        if (listener != null) {
+                            listener.onError("Location name not found");
+                        }
+                    }
+                }
+                
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    Log.e(TAG, "Failed to get location name: " + error.getMessage());
+                    if (listener != null) {
+                        listener.onError(error.getMessage());
+                    }
+                }
+            });
+    }
+
+    /**
+     * Get a sublocation name by its ID and parent location ID
+     * @param locationId The ID of the parent location
+     * @param sublocationId The ID of the sublocation
+     * @param listener Listener to handle the loaded name
+     */
+    public void getSublocationName(String locationId, String sublocationId, OnNameLoadedListener listener) {
+        if (!isUserLoggedIn()) {
+            Log.e(TAG, "Cannot get sublocation name: User not logged in");
+            if (listener != null) {
+                listener.onError("User not logged in");
+            }
+            return;
+        }
+        
+        String userId = getCurrentUserId();
+        database.child("users").child(userId).child("locations").child(locationId)
+            .child("sublocations").child(sublocationId).child("name")
+            .addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    String name = snapshot.getValue(String.class);
+                    if (name != null) {
+                        Log.d(TAG, "Retrieved sublocation name: " + name);
+                        if (listener != null) {
+                            listener.onNameLoaded(name);
+                        }
+                    } else {
+                        Log.e(TAG, "Sublocation name not found for ID: " + sublocationId);
+                        if (listener != null) {
+                            listener.onError("Sublocation name not found");
+                        }
+                    }
+                }
+                
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    Log.e(TAG, "Failed to get sublocation name: " + error.getMessage());
+                    if (listener != null) {
+                        listener.onError(error.getMessage());
+                    }
+                }
+            });
+    }
+
     // =========================
     // Interfaces
     // =========================
@@ -941,6 +1093,63 @@ public class FirebaseHelper {
     public interface OnUsersLoadedListener {
         void onUsersLoaded(List<User> users);
         void onError(String error);
+    }
+
+    public interface OnNameLoadedListener {
+        void onNameLoaded(String name);
+        void onError(String error);
+    }
+
+    public interface OnMessageLoadedListener {
+        void onMessageLoaded(Message message);
+        void onError(String error);
+    }
+
+    /**
+     * Get a specific message by its ID
+     * 
+     * @param messageId ID of the message to retrieve
+     * @param listener Listener to handle the loaded message
+     */
+    public void getMessageById(String messageId, OnMessageLoadedListener listener) {
+        if (messageId == null) {
+            Log.e(TAG, "getMessageById: message ID is null");
+            if (listener != null) {
+                listener.onError("Missing message ID");
+            }
+            return;
+        }
+        
+        Log.d(TAG, "getMessageById: Getting message with ID: " + messageId);
+        
+        // In our new structure, messages are stored directly in the messages node
+        DatabaseReference messageRef = database.child("messages").child(messageId);
+        messageRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Message message = snapshot.getValue(Message.class);
+                
+                if (message != null) {
+                    Log.d(TAG, "getMessageById: Successfully retrieved message");
+                    if (listener != null) {
+                        listener.onMessageLoaded(message);
+                    }
+                } else {
+                    Log.e(TAG, "getMessageById: Message not found");
+                    if (listener != null) {
+                        listener.onError("Message not found");
+                    }
+                }
+            }
+            
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e(TAG, "getMessageById: Failed to get message: " + error.getMessage());
+                if (listener != null) {
+                    listener.onError(error.getMessage());
+                }
+            }
+        });
     }
 
     /**

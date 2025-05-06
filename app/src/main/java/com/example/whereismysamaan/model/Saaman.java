@@ -9,6 +9,7 @@ public class Saaman {
     private String locationId;
     private String sublocationId;
     private String imageUrl;
+    private String imageBase64;
     
     // Default constructor for Firebase or similar
     public Saaman() {
@@ -69,5 +70,13 @@ public class Saaman {
     
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+    
+    public String getImageBase64() {
+        return imageBase64;
+    }
+    
+    public void setImageBase64(String imageBase64) {
+        this.imageBase64 = imageBase64;
     }
 } 

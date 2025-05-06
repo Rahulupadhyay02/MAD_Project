@@ -72,7 +72,10 @@
                 android:layout_height="200dp"
                 android:scaleType="centerCrop"
                 android:layout_marginBottom="16dp"
-                android:contentDescription="Saaman Image" />
+                android:contentDescription="Saaman Image"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground" />
 
             <!-- Saaman Name -->
             <TextView
@@ -89,7 +92,11 @@
                 android:layout_height="wrap_content"
                 android:textSize="18sp"
                 android:layout_marginBottom="16dp"
-                tools:text="Book" />
+                tools:text="Book"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:padding="8dp" />
 
             <!-- Location -->
             <TextView

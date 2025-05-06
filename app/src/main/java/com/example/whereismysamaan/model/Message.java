@@ -17,12 +17,14 @@ public class Message {
     private String sublocationName;
     private long timestamp;
     private boolean isRead;
+    private boolean isImageBase64;
     
     // Default constructor for Firebase
     public Message() {
         this.id = UUID.randomUUID().toString();
         this.timestamp = new Date().getTime();
         this.isRead = false;
+        this.isImageBase64 = false;
     }
     
     // Constructor for sharing Samaan
@@ -42,6 +44,30 @@ public class Message {
         this.content = "Location: " + locationName + " > " + sublocationName;
         this.timestamp = new Date().getTime();
         this.isRead = false;
+        this.isImageBase64 = false;
+    }
+    
+    /**
+     * Copy constructor to create a deep copy of a message
+     * @param original The original message to copy
+     */
+    public Message(Message original) {
+        if (original != null) {
+            this.id = original.id;
+            this.senderId = original.senderId;
+            this.senderName = original.senderName;
+            this.receiverId = original.receiverId;
+            this.title = original.title;
+            this.content = original.content;
+            this.saamanId = original.saamanId;
+            this.saamanName = original.saamanName;
+            this.saamanImageUrl = original.saamanImageUrl;
+            this.locationName = original.locationName;
+            this.sublocationName = original.sublocationName;
+            this.timestamp = original.timestamp;
+            this.isRead = original.isRead;
+            this.isImageBase64 = original.isImageBase64;
+        }
     }
     
     // Getters and setters
@@ -147,5 +173,13 @@ public class Message {
     
     public void setRead(boolean read) {
         isRead = read;
+    }
+    
+    public boolean isImageBase64() {
+        return isImageBase64;
+    }
+    
+    public void setIsImageBase64(boolean isImageBase64) {
+        this.isImageBase64 = isImageBase64;
     }
 } 

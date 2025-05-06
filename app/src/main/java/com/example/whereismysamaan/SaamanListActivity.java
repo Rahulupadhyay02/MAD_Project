@@ -4,6 +4,7 @@ import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.ImageDecoder;
 import android.net.Uri;
 import android.os.Bundle;
@@ -37,10 +38,9 @@ import com.example.whereismysamaan.model.Saaman;
 import com.example.whereismysamaan.model.Message;
 import com.example.whereismysamaan.model.User;
 import com.example.whereismysamaan.adapter.UserAdapter;
+import com.example.whereismysamaan.util.ImageCompressor;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -49,9 +49,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
+
+import android.util.Base64;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
+import android.graphics.drawable.Drawable;
 
 public class SaamanListActivity extends AppCompatActivity implements SaamanAdapter.OnSaamanClickListener {
     private static final String TAG = "SaamanListActivity";
@@ -411,6 +421,91 @@ public class SaamanListActivity extends AppCompatActivity implements SaamanAdapt
         );
     }
     
+    private void uploadSaamanImageAndCreateSaaman(String name, String description) {
+        // Show loading dialog
+        AlertDialog loadingDialog = new MaterialAlertDialogBuilder(this)
+            .setTitle("Processing Image")
+            .setMessage("Please wait while your image is being processed...")
+            .setCancelable(false)
+            .create();
+        loadingDialog.show();
+        
+        try {
+            if (currentPhotoUri == null) {
+                Log.e(TAG, "Photo URI is null");
+                Toast.makeText(this, "Error: No image selected", Toast.LENGTH_SHORT).show();
+                loadingDialog.dismiss();
+                addNewSaaman(name, description, null);
+                return;
+            }
+            
+            Log.d(TAG, "Starting image processing for URI: " + currentPhotoUri);
+            
+            // Prepare Firebase Database path
+            String userId = firebaseHelper.getCurrentUserId();
+            if (userId == null) {
+                Log.e(TAG, "User not logged in");
+                Toast.makeText(this, "Error: You must be logged in to add items", Toast.LENGTH_SHORT).show();
+                loadingDialog.dismiss();
+                addNewSaaman(name, description, null);
+                return;
+            }
+            
+            try {
+                // Compress and encode the image using ImageCompressor
+                String base64Image = ImageCompressor.compressAndEncodeImage(
+                    this, currentPhotoUri, 800, 70);
+                
+                if (base64Image == null) {
+                    Log.e(TAG, "Failed to compress and encode image");
+                    Toast.makeText(this, "Unable to process image data", Toast.LENGTH_SHORT).show();
+                    loadingDialog.dismiss();
+                    addNewSaaman(name, description, null);
+                    return;
+                }
+                
+                Log.d(TAG, "Successfully compressed and encoded image to base64, size: " + base64Image.length() + " characters");
+                
+                // Create and add saaman with the base64 encoded image
+                Saaman saaman = new Saaman(name, description, sublocationId);
+                saaman.setLocationId(locationId);
+                saaman.setImageBase64(base64Image);
+                
+                // Add to Firebase
+                firebaseHelper.addSaaman(saaman, task -> {
+                    loadingDialog.dismiss();
+                    if (task.isSuccessful()) {
+                        Toast.makeText(SaamanListActivity.this, "Added new saaman: " + name, Toast.LENGTH_SHORT).show();
+                        
+                        // Instead of reloading all items, just add the new one to the adapter
+                        runOnUiThread(() -> {
+                            adapter.addSaaman(saaman);
+                            updateEmptyViewVisibility();
+                        });
+                    } else {
+                        String errorMsg = task.getException() != null ? task.getException().getMessage() : "Unknown error";
+                        Toast.makeText(SaamanListActivity.this, 
+                                "Failed to add saaman: " + errorMsg, 
+                                Toast.LENGTH_SHORT).show();
+                    }
+                    
+                    // Reset the current photo URI
+                    currentPhotoUri = null;
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Error during image compression: " + e.getMessage(), e);
+                loadingDialog.dismiss();
+                Toast.makeText(this, "Error processing image", Toast.LENGTH_SHORT).show();
+                addNewSaaman(name, description, null);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Unexpected error: " + e.getMessage(), e);
+            loadingDialog.dismiss();
+            Toast.makeText(this, "Error adding item", Toast.LENGTH_SHORT).show();
+            addNewSaaman(name, description, null);
+        }
+    }
+    
     private void addNewSaaman(String name, String description, String imageUrl) {
         // Create a new Saaman object
         Saaman saaman = new Saaman(name, description, sublocationId);
@@ -441,95 +536,7 @@ public class SaamanListActivity extends AppCompatActivity implements SaamanAdapt
         // Reset the current photo URI
         currentPhotoUri = null;
     }
-    
-    private void uploadSaamanImageAndCreateSaaman(String name, String description) {
-        // Show loading dialog
-        AlertDialog loadingDialog = new MaterialAlertDialogBuilder(this)
-            .setTitle("Uploading Image")
-            .setMessage("Please wait while your image is being uploaded...")
-            .setCancelable(false)
-            .create();
-        loadingDialog.show();
-        
-        try {
-            if (currentPhotoUri == null) {
-                Log.e(TAG, "Photo URI is null");
-                Toast.makeText(this, "Error: No image selected", Toast.LENGTH_SHORT).show();
-                loadingDialog.dismiss();
-                addNewSaaman(name, description, null);
-                return;
-            }
-            
-            Log.d(TAG, "Starting image upload process for URI: " + currentPhotoUri);
-            
-            // Generate a unique file name with timestamp
-            String timestamp = String.valueOf(System.currentTimeMillis());
-            String storageFileName = "saaman_" + timestamp + ".jpg";
-            
-            // Prepare Firebase Storage path
-            String userId = firebaseHelper.getCurrentUserId();
-            if (userId == null) {
-                Log.e(TAG, "User not logged in - Firebase Storage rules will deny upload");
-                Toast.makeText(this, "Error: You must be logged in to upload images", Toast.LENGTH_SHORT).show();
-                loadingDialog.dismiss();
-                addNewSaaman(name, description, null);
-                return;
-            }
-            
-            // Create a direct byte array for upload
-            try {
-                // Get file bytes
-                byte[] fileData = getBytesFromUri(currentPhotoUri);
-                if (fileData == null || fileData.length == 0) {
-                    Log.e(TAG, "Failed to read file data");
-                    Toast.makeText(this, "Unable to read image data", Toast.LENGTH_SHORT).show();
-                    loadingDialog.dismiss();
-                    addNewSaaman(name, description, null);
-                    return;
-                }
-                
-                Log.d(TAG, "Successfully read image data: " + fileData.length + " bytes");
-                
-                // Upload file bytes directly
-                String imagePath = "saaman_images/" + userId + "/" + locationId + "/" + sublocationId + "/" + storageFileName;
-                StorageReference imageRef = FirebaseStorage.getInstance().getReference().child(imagePath);
-                
-                imageRef.putBytes(fileData)
-                    .addOnSuccessListener(taskSnapshot -> {
-                        // Get download URL
-                        imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                            String imageUrl = uri.toString();
-                            Log.d(TAG, "Upload successful. Image URL: " + imageUrl);
-                            loadingDialog.dismiss();
-                            addNewSaaman(name, description, imageUrl);
-                        }).addOnFailureListener(e -> {
-                            Log.e(TAG, "Failed to get download URL", e);
-                            loadingDialog.dismiss();
-                            addNewSaaman(name, description, null);
-                        });
-                    })
-                    .addOnFailureListener(e -> {
-                        Log.e(TAG, "Upload failed", e);
-                        loadingDialog.dismiss();
-                        Toast.makeText(SaamanListActivity.this, 
-                                "Failed to upload image: " + e.getMessage(), 
-                                Toast.LENGTH_SHORT).show();
-                        addNewSaaman(name, description, null);
-                    });
-            } catch (Exception e) {
-                Log.e(TAG, "Error during file conversion: " + e.getMessage(), e);
-                loadingDialog.dismiss();
-                Toast.makeText(this, "Error processing image", Toast.LENGTH_SHORT).show();
-                addNewSaaman(name, description, null);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Unexpected error in uploadSaamanImageAndCreateSaaman: " + e.getMessage(), e);
-            loadingDialog.dismiss();
-            Toast.makeText(this, "Error uploading image", Toast.LENGTH_SHORT).show();
-            addNewSaaman(name, description, null);
-        }
-    }
-    
+
     // Helper method to convert URI to byte array
     private byte[] getBytesFromUri(Uri uri) throws IOException {
         InputStream inputStream = getContentResolver().openInputStream(uri);
@@ -568,151 +575,232 @@ public class SaamanListActivity extends AppCompatActivity implements SaamanAdapt
     }
     
     private void showSaamanDetailsDialog(Saaman saaman) {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_saaman_details, null);
+        AlertDialog.Builder builder = new MaterialAlertDialogBuilder(this);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_saaman_details, null);
         
-        TextView tvName = dialogView.findViewById(R.id.tv_saaman_name);
-        TextView tvDescription = dialogView.findViewById(R.id.tv_saaman_description);
-        ImageView ivSaamanImage = dialogView.findViewById(R.id.iv_saaman_image);
-        Button btnShare = dialogView.findViewById(R.id.btn_share);
+        TextView tvName = view.findViewById(R.id.tv_saaman_name);
+        TextView tvDescription = view.findViewById(R.id.tv_saaman_description);
+        ImageView ivImage = view.findViewById(R.id.iv_saaman_image);
+        TextView tvNoImage = view.findViewById(R.id.tv_no_image_details);
         
         tvName.setText(saaman.getName());
+        tvDescription.setText(saaman.getDescription());
         
-        if (saaman.getDescription() != null && !saaman.getDescription().isEmpty()) {
-            tvDescription.setText(saaman.getDescription());
-            tvDescription.setVisibility(View.VISIBLE);
-        } else {
-            tvDescription.setVisibility(View.GONE);
-        }
-        
-        // Load image if available
-        if (saaman.getImageUrl() != null && !saaman.getImageUrl().isEmpty()) {
-            // Use Glide to load image
-            ivSaamanImage.setVisibility(View.VISIBLE);
-            com.bumptech.glide.Glide.with(this)
+        // Try to load base64 encoded image first, fallback to URL if available
+        if (saaman.getImageBase64() != null && !saaman.getImageBase64().isEmpty()) {
+            try {
+                // Decode base64 string to bitmap
+                byte[] decodedBytes = Base64.decode(saaman.getImageBase64(), Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                
+                if (bitmap != null) {
+                    ivImage.setImageBitmap(bitmap);
+                    ivImage.setVisibility(View.VISIBLE);
+                    tvNoImage.setVisibility(View.GONE);
+                } else {
+                    // Failed to decode bitmap
+                    ivImage.setVisibility(View.GONE);
+                    tvNoImage.setVisibility(View.VISIBLE);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error decoding base64 image: " + e.getMessage(), e);
+                ivImage.setVisibility(View.GONE);
+                tvNoImage.setVisibility(View.VISIBLE);
+            }
+        } else if (saaman.getImageUrl() != null && !saaman.getImageUrl().isEmpty()) {
+            // Fallback to URL image if available
+            Glide.with(this)
                 .load(saaman.getImageUrl())
-                .into(ivSaamanImage);
+                .listener(new RequestListener<Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                        Log.e(TAG, "Failed to load image: " + e.getMessage(), e);
+                        ivImage.setVisibility(View.GONE);
+                        tvNoImage.setVisibility(View.VISIBLE);
+                        return false;
+                    }
+                    
+                    @Override
+                    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                        ivImage.setVisibility(View.VISIBLE);
+                        tvNoImage.setVisibility(View.GONE);
+                        return false;
+                    }
+                })
+                .into(ivImage);
         } else {
-            ivSaamanImage.setVisibility(View.GONE);
+            // No image available
+            ivImage.setVisibility(View.GONE);
+            tvNoImage.setVisibility(View.VISIBLE);
         }
         
-        // Set up share button
-        btnShare.setOnClickListener(v -> {
-            shareSaaman(saaman);
-        });
+        builder.setView(view);
+        builder.setPositiveButton("Close", null);
         
-        new AlertDialog.Builder(this)
-            .setView(dialogView)
-            .setPositiveButton("Close", null)
-            .show();
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
     
     private void shareSaaman(Saaman saaman) {
-        // Get the current location name
-        String locationName = this.sublocationName;
+        // First check if we have a logged-in user
+        String userId = firebaseHelper.getCurrentUserId();
+        if (userId == null) {
+            Toast.makeText(this, "You must be logged in to share items", Toast.LENGTH_SHORT).show();
+            return;
+        }
         
-        // Show loading dialog
-        AlertDialog loadingDialog = new AlertDialog.Builder(this)
-            .setTitle("Loading Users")
-            .setMessage("Please wait...")
-            .setCancelable(false)
-            .create();
-        loadingDialog.show();
-        
-        // Get all app users
-        firebaseHelper.getAllUsers(new FirebaseHelper.OnUsersLoadedListener() {
+        // Get the current user's profile to get the user name
+        firebaseHelper.getUserProfile(new FirebaseHelper.OnUserProfileLoadedListener() {
             @Override
-            public void onUsersLoaded(List<User> users) {
-                // Dismiss loading dialog
-                loadingDialog.dismiss();
-                
-                if (users.isEmpty()) {
-                    Toast.makeText(SaamanListActivity.this, "No users to share with", Toast.LENGTH_SHORT).show();
+            public void onUserProfileLoaded(User user) {
+                if (user == null) {
+                    Toast.makeText(SaamanListActivity.this, 
+                            "Failed to load your profile", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 
-                // Create and show user selection dialog
-                showUserSelectionDialog(users, saaman, locationName);
-            }
-            
-            @Override
-            public void onError(String error) {
-                // Dismiss loading dialog
-                loadingDialog.dismiss();
-                
-                Toast.makeText(SaamanListActivity.this, "Error loading users: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-    
-    private void showUserSelectionDialog(List<User> users, Saaman saaman, String locationName) {
-        // Inflate the dialog layout
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_user_selection, null);
-        RecyclerView recyclerUsers = dialogView.findViewById(R.id.recycler_users);
-        TextView tvTitle = dialogView.findViewById(R.id.tv_dialog_title);
-        
-        // Set the title
-        tvTitle.setText("Share \"" + saaman.getName() + "\" with:");
-        
-        // Setup RecyclerView
-        recyclerUsers.setLayoutManager(new LinearLayoutManager(this));
-        
-        // Create user adapter
-        UserAdapter adapter = new UserAdapter(users);
-        adapter.setOnUserClickListener(user -> {
-            // Share the Samaan with this user
-            shareWithUser(user, saaman, locationName);
-            
-            // Dismiss the dialog
-            if (userSelectionDialog != null) {
-                userSelectionDialog.dismiss();
-            }
-        });
-        
-        recyclerUsers.setAdapter(adapter);
-        
-        // Create and show the dialog
-        userSelectionDialog = new AlertDialog.Builder(this)
-            .setView(dialogView)
-            .setNegativeButton("Cancel", null)
-            .create();
-        
-        userSelectionDialog.show();
-    }
-    
-    private void shareWithUser(User recipient, Saaman saaman, String locationName) {
-        // Get current user info
-        firebaseHelper.getUserProfile(new FirebaseHelper.OnUserProfileLoadedListener() {
-            @Override
-            public void onUserProfileLoaded(User sender) {
-                // Create the message
-                Message message = new Message(
-                    sender.getId(),
-                    sender.getName(),
-                    recipient.getId(),
-                    saaman.getId(),
-                    saaman.getName(),
-                    saaman.getImageUrl(),
-                    locationName,
-                    sublocationName
-                );
-                
-                // Send the message
-                firebaseHelper.sendMessage(message, task -> {
-                    if (task != null && task.isSuccessful()) {
+                // Get location name
+                firebaseHelper.getLocationName(locationId, new FirebaseHelper.OnNameLoadedListener() {
+                    @Override
+                    public void onNameLoaded(String locationName) {
+                        if (locationName == null) {
+                            Toast.makeText(SaamanListActivity.this, 
+                                    "Failed to load location information", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        
+                        // Get sublocation name
+                        firebaseHelper.getSublocationName(locationId, sublocationId, new FirebaseHelper.OnNameLoadedListener() {
+                            @Override
+                            public void onNameLoaded(String sublocationName) {
+                                if (sublocationName == null) {
+                                    Toast.makeText(SaamanListActivity.this, 
+                                            "Failed to load sublocation information", Toast.LENGTH_SHORT).show();
+                                    return;
+                                }
+                                
+                                // Show user selection dialog
+                                showUserSelectionDialog(saaman, user.getUsername(), locationName, sublocationName);
+                            }
+                            
+                            @Override
+                            public void onError(String error) {
+                                Toast.makeText(SaamanListActivity.this, 
+                                        "Error: " + error, Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                    
+                    @Override
+                    public void onError(String error) {
                         Toast.makeText(SaamanListActivity.this, 
-                            "Shared with " + recipient.getName(), Toast.LENGTH_SHORT).show();
-                    } else {
-                        String errorMsg = (task != null && task.getException() != null) ? 
-                            task.getException().getMessage() : "Unknown error";
-                        Toast.makeText(SaamanListActivity.this, 
-                            "Failed to share: " + errorMsg, Toast.LENGTH_SHORT).show();
+                                "Error: " + error, Toast.LENGTH_SHORT).show();
                     }
                 });
             }
             
             @Override
             public void onError(String error) {
-                Toast.makeText(SaamanListActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
+                Toast.makeText(SaamanListActivity.this, 
+                        "Error: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    
+    private void showUserSelectionDialog(Saaman saaman, String senderName, String locationName, String sublocationName) {
+        // Load list of users to share with
+        firebaseHelper.getAllUsers(new FirebaseHelper.OnUsersLoadedListener() {
+            @Override
+            public void onUsersLoaded(List<User> users) {
+                if (users == null || users.isEmpty()) {
+                    Toast.makeText(SaamanListActivity.this, 
+                            "No users found to share with", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                // Filter out the current user
+                String currentUserId = firebaseHelper.getCurrentUserId();
+                List<User> filteredUsers = new ArrayList<>();
+                
+                for (User user : users) {
+                    if (!user.getId().equals(currentUserId)) {
+                        filteredUsers.add(user);
+                    }
+                }
+                
+                if (filteredUsers.isEmpty()) {
+                    Toast.makeText(SaamanListActivity.this, 
+                            "No other users found to share with", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                // Create a list of usernames for the dialog
+                final CharSequence[] usernames = new CharSequence[filteredUsers.size()];
+                for (int i = 0; i < filteredUsers.size(); i++) {
+                    usernames[i] = filteredUsers.get(i).getUsername();
+                }
+                
+                // Show dialog with user list
+                new AlertDialog.Builder(SaamanListActivity.this)
+                    .setTitle("Share with")
+                    .setItems(usernames, (dialog, position) -> {
+                        User selectedUser = filteredUsers.get(position);
+                        
+                        // Create a unique message ID
+                        String messageId = UUID.randomUUID().toString();
+                        
+                        // Determine which image to use
+                        String imageToShare = null;
+                        boolean isBase64 = false;
+                        
+                        if (saaman.getImageBase64() != null && !saaman.getImageBase64().isEmpty()) {
+                            // Use the base64 image directly (already compressed during capture)
+                            imageToShare = saaman.getImageBase64();
+                            isBase64 = true;
+                        } else if (saaman.getImageUrl() != null && !saaman.getImageUrl().isEmpty()) {
+                            imageToShare = saaman.getImageUrl();
+                            isBase64 = false;
+                        }
+                        
+                        // Create message object with the selected user's ID
+                        Message message = new Message(
+                                currentUserId,
+                                senderName,
+                                selectedUser.getId(),
+                                saaman.getId(),
+                                saaman.getName(),
+                                imageToShare,
+                                locationName,
+                                sublocationName);
+                        
+                        // Set message ID and image type
+                        message.setId(messageId);
+                        message.setIsImageBase64(isBase64);
+
+                        // Send the message
+                        firebaseHelper.sendMessage(message, task -> {
+                            if (task.isSuccessful()) {
+                                Toast.makeText(SaamanListActivity.this, 
+                                        "Shared with " + selectedUser.getUsername(), 
+                                        Toast.LENGTH_SHORT).show();
+                            } else {
+                                String errorMsg = task.getException() != null ? 
+                                        task.getException().getMessage() : "Unknown error";
+                                
+                                Toast.makeText(SaamanListActivity.this, 
+                                        "Failed to share: " + errorMsg, 
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            }
+            
+            @Override
+            public void onError(String error) {
+                Toast.makeText(SaamanListActivity.this, 
+                        "Error loading users: " + error, Toast.LENGTH_SHORT).show();
             }
         });
     }

@@ -1,5 +1,7 @@
 package com.example.whereismysamaan.adapter;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -96,27 +98,35 @@ public class SaamanAdapter extends RecyclerView.Adapter<SaamanAdapter.SaamanView
 
         public void bind(Saaman saaman) {
             tvSaamanName.setText(saaman.getName());
+            tvSaamanDescription.setText(saaman.getDescription());
             
-            // Set description if available, otherwise hide the TextView
-            if (saaman.getDescription() != null && !saaman.getDescription().isEmpty()) {
-                tvSaamanDescription.setText(saaman.getDescription());
-                tvSaamanDescription.setVisibility(View.VISIBLE);
-            } else {
-                tvSaamanDescription.setVisibility(View.GONE);
-            }
-            
-            // Set the image or icon
-            if (saaman.getImageUrl() != null && !saaman.getImageUrl().isEmpty()) {
-                // Load image with Glide
-                Glide.with(ivSaamanType.getContext())
+            // First try to load from base64, then fallback to URL if available
+            if (saaman.getImageBase64() != null && !saaman.getImageBase64().isEmpty()) {
+                try {
+                    // Decode base64 string to bitmap
+                    byte[] decodedBytes = android.util.Base64.decode(saaman.getImageBase64(), android.util.Base64.DEFAULT);
+                    Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                    
+                    if (bitmap != null) {
+                        ivSaamanType.setImageBitmap(bitmap);
+                    } else {
+                        // Set a default image if decoding fails
+                        ivSaamanType.setImageResource(R.drawable.ic_track);
+                    }
+                } catch (Exception e) {
+                    // Set a default image if there's an error
+                    ivSaamanType.setImageResource(R.drawable.ic_track);
+                }
+            } else if (saaman.getImageUrl() != null && !saaman.getImageUrl().isEmpty()) {
+                // Load image URL with Glide as fallback
+                Glide.with(itemView.getContext())
                     .load(saaman.getImageUrl())
-                    .placeholder(R.drawable.ic_xyz)
-                    .error(R.drawable.ic_xyz)
-                    .centerCrop()
+                    .placeholder(R.drawable.ic_track)
+                    .error(R.drawable.ic_track)
                     .into(ivSaamanType);
             } else {
-                // Use default icon
-                ivSaamanType.setImageResource(R.drawable.ic_xyz);
+                // Set a default image if no image is available
+                ivSaamanType.setImageResource(R.drawable.ic_track);
             }
         }
     }

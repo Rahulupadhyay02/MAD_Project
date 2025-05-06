@@ -1302,9 +1302,17 @@ public class MainActivity extends AppCompatActivity {
         
         try {
             // Register receivers with their respective actions
-            registerReceiver(themeChangeReceiver, new IntentFilter(ACTION_THEME_CHANGED));
-            registerReceiver(fontSizeChangeReceiver, new IntentFilter(ACTION_FONT_SIZE_CHANGED));
-            registerReceiver(wallpaperChangeReceiver, new IntentFilter(ACTION_WALLPAPER_CHANGED));
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                // For Android 13 (API 33) and above, add the RECEIVER_NOT_EXPORTED flag
+                registerReceiver(themeChangeReceiver, new IntentFilter(ACTION_THEME_CHANGED), Context.RECEIVER_NOT_EXPORTED);
+                registerReceiver(fontSizeChangeReceiver, new IntentFilter(ACTION_FONT_SIZE_CHANGED), Context.RECEIVER_NOT_EXPORTED);
+                registerReceiver(wallpaperChangeReceiver, new IntentFilter(ACTION_WALLPAPER_CHANGED), Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                // For older Android versions
+                registerReceiver(themeChangeReceiver, new IntentFilter(ACTION_THEME_CHANGED));
+                registerReceiver(fontSizeChangeReceiver, new IntentFilter(ACTION_FONT_SIZE_CHANGED));
+                registerReceiver(wallpaperChangeReceiver, new IntentFilter(ACTION_WALLPAPER_CHANGED));
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error registering broadcast receivers: " + e.getMessage());
         }
@@ -1621,7 +1629,13 @@ public class MainActivity extends AppCompatActivity {
             };
             
             // Register the receiver
-            registerReceiver(profileUpdateReceiver, new IntentFilter("com.example.whereismysamaan.PROFILE_UPDATED"));
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                // For Android 13 (API 33) and above, add the RECEIVER_NOT_EXPORTED flag
+                registerReceiver(profileUpdateReceiver, new IntentFilter("com.example.whereismysamaan.PROFILE_UPDATED"), Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                // For older Android versions
+                registerReceiver(profileUpdateReceiver, new IntentFilter("com.example.whereismysamaan.PROFILE_UPDATED"));
+            }
             Log.d(TAG, "Profile update receiver registered");
         } catch (Exception e) {
             Log.e(TAG, "Error registering profile update receiver: " + e.getMessage());
