@@ -112,6 +112,13 @@
     <string name="reminder_enabled">Reminders enabled</string>
     <string name="reminder_disabled">Reminders disabled</string>
     
+    <!-- Notification Permission -->
+    <string name="notification_permission_title">Notification Permission Required</string>
+    <string name="notification_permission_message">Notification permission is required to send you reminders about your items.</string>
+    <string name="notification_permission_denied">Notification permission is required for reminders</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    
     <!-- Menu Strings -->
     <string name="menu_reminder">Reminders</string>
     <string name="menu_share_samaan">Share Samaan</string>
@@ -129,7 +136,6 @@
     <string name="add_new_location">Add New Location</string>
     <string name="enter_location_name">Enter location name</string>
     <string name="add">Add</string>
-    <string name="cancel">Cancel</string>
     
     <!-- Sublocation strings -->
     <string name="add_new_sublocation">Add New Sublocation</string>

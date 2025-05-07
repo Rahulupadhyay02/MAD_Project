@@ -1,12 +1,16 @@
 package com.example.whereismysamaan;
 
+import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -16,8 +20,12 @@ import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
+import androidx.core.content.ContextCompat;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -40,6 +48,9 @@ public class PeriodicReminderActivity extends AppCompatActivity {
     private static final String PREF_REMINDER_FREQUENCY = "reminderFrequency";
     private static final String PREF_REMINDER_HOUR = "reminderHour";
     private static final String PREF_REMINDER_MINUTE = "reminderMinute";
+    
+    // Permission launcher for notification permission
+    private ActivityResultLauncher<String> requestPermissionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +67,9 @@ public class PeriodicReminderActivity extends AppCompatActivity {
             // Initialize shared preferences
             sharedPreferences = getSharedPreferences(REMINDER_PREFS, MODE_PRIVATE);
             
+            // Setup permission launcher
+            setupPermissionLauncher();
+            
             // Load saved preferences
             loadSavedPreferences();
             
@@ -71,6 +85,16 @@ public class PeriodicReminderActivity extends AppCompatActivity {
                 saveReminderSettings.setOnClickListener(v -> saveReminderSettings());
             } else {
                 Log.e(TAG, "saveReminderSettings is null");
+            }
+            
+            // Set up listener for reminder switch
+            if (enableReminderSwitch != null) {
+                enableReminderSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                    if (isChecked && !checkNotificationPermission()) {
+                        // If switch is turned on but we don't have permission, request it
+                        requestNotificationPermission();
+                    }
+                });
             }
             
             Log.d(TAG, "PeriodicReminderActivity initialized successfully");
@@ -184,6 +208,55 @@ public class PeriodicReminderActivity extends AppCompatActivity {
         }
     }
     
+    private void setupPermissionLauncher() {
+        requestPermissionLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            isGranted -> {
+                if (!isGranted) {
+                    // Handle permission denied
+                    Log.d(TAG, "Notification permission denied");
+                    Toast.makeText(this, R.string.notification_permission_denied, Toast.LENGTH_LONG).show();
+                    enableReminderSwitch.setChecked(false);
+                } else {
+                    Log.d(TAG, "Notification permission granted");
+                }
+            }
+        );
+    }
+    
+    private boolean checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(
+                this, 
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true; // Permission not required for Android < 13
+    }
+    
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                // Show explanation to the user why we need this permission
+                new AlertDialog.Builder(this)
+                    .setTitle(R.string.notification_permission_title)
+                    .setMessage(R.string.notification_permission_message)
+                    .setPositiveButton(R.string.ok, (dialog, which) -> {
+                        requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+                    })
+                    .setNegativeButton(R.string.cancel, (dialog, which) -> {
+                        enableReminderSwitch.setChecked(false);
+                        dialog.dismiss();
+                    })
+                    .create()
+                    .show();
+            } else {
+                // Request the permission directly
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
+    }
+    
     private void saveReminderSettings() {
         try {
             // Get selected frequency
@@ -203,6 +276,13 @@ public class PeriodicReminderActivity extends AppCompatActivity {
             
             // Get switch state
             boolean isEnabled = enableReminderSwitch != null && enableReminderSwitch.isChecked();
+            
+            // Check if notification permission is granted when reminders are enabled
+            if (isEnabled && !checkNotificationPermission()) {
+                requestNotificationPermission();
+                // Don't save settings until permission is granted
+                return;
+            }
             
             // Save preferences
             SharedPreferences.Editor editor = sharedPreferences.edit();
