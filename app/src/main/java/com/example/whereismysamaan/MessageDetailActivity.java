@@ -99,7 +99,8 @@ public class MessageDetailActivity extends AppCompatActivity {
             // Check if we're missing critical data
             boolean missingData = messageTitle == null || senderName == null || 
                                  saamanName == null || locationName == null || 
-                                 sublocationName == null;
+                                 sublocationName == null ||
+                                 (isImageBase64 && (saamanImageUrl == null || saamanImageUrl.isEmpty()));
             
             if (missingData) {
                 Log.w(TAG, "Missing some message data in intent, fetching entire message from Firebase");
@@ -236,31 +237,58 @@ public class MessageDetailActivity extends AppCompatActivity {
     }
     
     private void loadBase64Image(String base64Image) {
-        try {
-            Log.d(TAG, "Loading base64 image, length: " + base64Image.length());
-            
-            // Decode base64 string to bitmap
-            byte[] decodedBytes = Base64.decode(base64Image, Base64.DEFAULT);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-            
-            if (bitmap != null) {
-                ivSaamanImage.setImageBitmap(bitmap);
-                ivSaamanImage.setVisibility(View.VISIBLE);
-                Log.d(TAG, "Base64 image loaded successfully");
-            } else {
-                Log.e(TAG, "Failed to decode base64 image");
-                ivSaamanImage.setVisibility(View.GONE);
-                Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
+        // Show loading state
+        ivSaamanImage.setVisibility(View.VISIBLE);
+        ivSaamanImage.setImageResource(R.drawable.ic_loading);
+        
+        new Thread(() -> {
+            try {
+                if (base64Image == null || base64Image.isEmpty()) {
+                    runOnUiThread(() -> {
+                        Log.e(TAG, "Base64 image string is null or empty");
+                        ivSaamanImage.setVisibility(View.GONE);
+                        Toast.makeText(MessageDetailActivity.this, "Image data is missing", Toast.LENGTH_SHORT).show();
+                    });
+                    return;
+                }
+                
+                Log.d(TAG, "Decoding base64 image, length: " + base64Image.length());
+                
+                // Decode in background thread
+                byte[] decodedBytes = Base64.decode(base64Image, Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                
+                // Update UI on main thread
+                runOnUiThread(() -> {
+                    if (bitmap != null) {
+                        ivSaamanImage.setImageBitmap(bitmap);
+                        ivSaamanImage.setVisibility(View.VISIBLE);
+                        Log.d(TAG, "Base64 image loaded successfully");
+                    } else {
+                        Log.e(TAG, "Failed to decode base64 image");
+                        ivSaamanImage.setVisibility(View.GONE);
+                        Toast.makeText(MessageDetailActivity.this, "Failed to load image", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    Log.e(TAG, "Error decoding base64 image: " + e.getMessage(), e);
+                    ivSaamanImage.setVisibility(View.GONE);
+                    Toast.makeText(MessageDetailActivity.this, "Error loading image: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Error decoding base64 image: " + e.getMessage(), e);
-            ivSaamanImage.setVisibility(View.GONE);
-            Toast.makeText(this, "Error loading image: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
+        }).start();
     }
     
     private void loadImageFromUrl(String imageUrl) {
         Log.d(TAG, "Loading image from URL: " + imageUrl);
+        
+        // Check if this is actually a URL and not a base64 string
+        if (imageUrl != null && imageUrl.length() > 500) {  // Base64 strings are typically very long
+            Log.w(TAG, "This doesn't look like a URL (too long). Trying to load as base64 instead.");
+            loadBase64Image(imageUrl);
+            return;
+        }
         
         // Show loading indicator
         ivSaamanImage.setVisibility(View.VISIBLE);
@@ -269,6 +297,7 @@ public class MessageDetailActivity extends AppCompatActivity {
         Glide.with(this)
             .load(imageUrl)
             .centerCrop()
+            .error(R.drawable.ic_loading) // Use existing ic_loading drawable instead of non-existent ic_error
             .into(ivSaamanImage);
     }
 } 

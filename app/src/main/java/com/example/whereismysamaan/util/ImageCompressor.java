@@ -18,6 +18,8 @@ import java.io.IOException;
  */
 public class ImageCompressor {
     private static final String TAG = "ImageCompressor";
+    private static final int TARGET_SIZE_KB = 50; // Target file size in KB
+    private static final int KB = 1024; // Bytes in a kilobyte
     
     /**
      * Compress a bitmap image to a smaller size
@@ -90,12 +92,12 @@ public class ImageCompressor {
     }
     
     /**
-     * Load an image from a URI and compress it
+     * Load an image from a URI and compress it to approximately 50KB
      * 
      * @param context The context
      * @param uri The URI of the image
-     * @param maxDimension Maximum width or height in pixels
-     * @param quality JPEG compression quality (0-100)
+     * @param maxDimension Maximum width or height in pixels (used as initial value)
+     * @param quality JPEG compression quality (used as initial value)
      * @return The base64 encoded string of the compressed image
      */
     public static String compressAndEncodeImage(Context context, Uri uri, int maxDimension, int quality) {
@@ -114,17 +116,55 @@ public class ImageCompressor {
                 originalBitmap = MediaStore.Images.Media.getBitmap(context.getContentResolver(), uri);
             }
             
-            // Compress the bitmap
-            Bitmap compressedBitmap = compressBitmap(originalBitmap, quality, maxDimension);
+            // Start with provided dimensions, but cap at 800px to start compression faster
+            maxDimension = Math.min(maxDimension, 800);
+            Bitmap resizedBitmap = compressBitmap(originalBitmap, 70, maxDimension);
+            
+            // Start with the provided quality, but cap at 70 to ensure better compression
+            quality = Math.min(quality, 70);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream);
+            
+            // If still too large, keep reducing quality and dimensions
+            while (outputStream.size() > TARGET_SIZE_KB * KB) {
+                outputStream.reset();
+                
+                // Reduce quality first
+                if (quality > 10) {
+                    quality -= 5;
+                } else {
+                    // If quality is already very low, reduce dimensions
+                    maxDimension = (int)(maxDimension * 0.8);
+                    if (maxDimension < 200) maxDimension = 200; // Don't go too small
+                    
+                    // Recycle previous bitmap if it's not the original
+                    if (resizedBitmap != originalBitmap) {
+                        resizedBitmap.recycle();
+                    }
+                    
+                    resizedBitmap = compressBitmap(originalBitmap, 70, maxDimension);
+                    quality = 30; // Reset quality after dimension change
+                }
+                
+                // Apply new compression settings
+                resizedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream);
+                
+                Log.d(TAG, "Current size: " + (outputStream.size() / KB) + 
+                      "KB, quality: " + quality + ", dimension: " + maxDimension);
+            }
+            
+            Log.d(TAG, "Final image size: " + (outputStream.size() / KB) + 
+                  "KB with quality: " + quality + ", max dimension: " + maxDimension);
             
             // Convert to base64
-            String base64Image = bitmapToBase64(compressedBitmap, quality);
+            byte[] byteArray = outputStream.toByteArray();
+            String base64Image = Base64.encodeToString(byteArray, Base64.DEFAULT);
             
             // Clean up bitmaps
-            if (originalBitmap != compressedBitmap) {
+            if (originalBitmap != resizedBitmap) {
                 originalBitmap.recycle();
             }
-            compressedBitmap.recycle();
+            resizedBitmap.recycle();
             
             return base64Image;
         } catch (IOException e) {
